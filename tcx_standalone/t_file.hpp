@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include  <io.h>
+#include <stdlib.h>
 #include <fstream>
 #include <string>
 #include <stack>
@@ -16,6 +18,8 @@ class Path{
 private:
     
     std::stack<std::string> stack_;
+    std::string str_cache_;
+    bool changed;
 
     inline static std::string get_cwd(){
 #ifdef _WIN32
@@ -68,14 +72,14 @@ private:
 #endif
     }
 public:
-    Path():stack_(){}
+    Path():stack_(),str_cache_(""),changed(false){}
 
     static Path parse(std::string const& _path_str){
         size_t start_pos = 0;
         size_t size = _path_str.size();
         Path res;
         if(!size)return res;
-
+        res.changed=true;
 
         size_t pos = find_first_delimiter(_path_str);
         std::string first_path = _path_str.substr(0,pos);
@@ -132,54 +136,59 @@ public:
 
     static Path cwd(){ return parse(get_cwd());}
 
-    std::string str() const{
+    std::string const& str() const{
+        if(!changed) return str_cache_;
+        const_cast<bool&>(changed) = false;
         std::stack<std::string> copy_stack = stack_;
         if(!stack_.size()){
 #ifdef _WIN32
-            return "";
+            const_cast<std::string&>(str_cache_) = "";
 #else
-            return "/";
+            const_cast<std::string&>(str_cache_) = "/";
 #endif
+            return str_cache_;
         }
-        std::string res="";
+        const_cast<std::string&>(str_cache_)="";
         while(!copy_stack.empty()){
             if(copy_stack.size() != 1){
-                res = get_delimiter() + copy_stack.top() + res;
+                const_cast<std::string&>(str_cache_) = get_delimiter() + copy_stack.top() + str_cache_;
             }else{
-                res = copy_stack.top() + res;
+                const_cast<std::string&>(str_cache_) = copy_stack.top() + str_cache_;
             }
             copy_stack.pop();
         }
-        return res;
+        return str_cache_;
     }
 
     Path& join(Path&& other_path){
-        std::vector<std::string> vec;
-        vec.reserve(other_path.stack_.size());
-        while(other_path.stack_.size()){
-            vec.emplace_back(std::move(other_path.stack_.top()));
+        if(!other_path.stack_.size()) return *this;
+        changed=true;
+        size_t sz = other_path.stack_.size();
+        std::vector<std::string> vec(sz);
+        for(size_t i=0;i< sz;i++){
+            vec[sz-i-1] = std::move(other_path.stack_.top());
             other_path.stack_.pop();
         }
-        if(vec.size()){
-            if(vec[0]==""){
-                
+
+        if(vec[0]==""){
+            
 #ifdef _WIN32
-                if(stack_.size()){
-                    while(stack_.size()>1){
-                        stack_.pop();
-                    }
-                    vec[0]= stack_.top();
+            if(stack_.size()){
+                while(stack_.size()>1){
                     stack_.pop();
                 }
-#else
-                stack_={};
-#endif
-                for(auto&i:vec){
-                    stack_.push(std::move(i));
-                }
-                return *this;
+                vec[0]= stack_.top();
+                stack_.pop();
             }
+#else
+            stack_={};
+#endif
+            for(auto&i:vec){
+                stack_.push(std::move(i));
+            }
+            return *this;
         }
+
         for(auto i = vec.rbegin(), end = vec.rend(); i!=end;++i){
             if(*i == "."){}
             else if(*i==".."){
@@ -205,9 +214,45 @@ public:
 
     Path& cd(std::string const& tar){return join(parse(tar));}
 
-    bool valid()const{
+    bool valid()const{ int ret = _access(str().c_str(),0); return ret !=ENOENT && ret!=-1;}
 
+    std::vector<_finddata_t> ll()const{
+        std::vector<_finddata_t> res{};
+        struct _finddata_t fileinfo{};
+        std::string to_search_s = str();
+        to_search_s+=get_delimiter();
+        to_search_s+='*';
+        auto handle=_findfirst(to_search_s.c_str(),&fileinfo);
+        if(-1==handle) return res;
+        do if(strcmp(fileinfo.name,".") != 0 && strcmp(fileinfo.name,"..") != 0) res.emplace_back(fileinfo);
+        while(!_findnext(handle,&fileinfo));
+        _findclose(handle);
+        return res;
     }
+
+    std::vector<std::string> ls()const{
+        std::vector<std::string> res{};
+        struct _finddata_t fileinfo{};
+        std::string to_search_s = str();
+        to_search_s+=get_delimiter();
+        to_search_s+='*';
+        auto handle=_findfirst(to_search_s.c_str(),&fileinfo);
+        if(-1==handle) return res;
+        do if(strcmp(fileinfo.name,".") != 0 && strcmp(fileinfo.name,"..") != 0) res.emplace_back(fileinfo.name);
+        while(!_findnext(handle,&fileinfo));
+        _findclose(handle);
+        return res;
+    }
+
+    inline std::vector<_finddata_t> dir()const{return ll();}
+
+    bool mkdir(std::string const& tar) const{
+        Path temp = *this;
+        temp.join(parse(tar));
+        return ::mkdir(temp.str().c_str()) == 0;
+    }
+
+    
 };
 
 } // namespace tcx

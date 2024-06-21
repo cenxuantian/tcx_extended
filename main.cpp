@@ -9,8 +9,6 @@
 int main(){
 
     tcx::Path a = tcx::Path::cwd();
-    a.cd("/yes").cd("..");
-    std::cout << a.str();
-
+    a.cd("..").mkdir("this is a test dir");
     return 0;
 }
