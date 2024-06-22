@@ -1,29 +1,10 @@
 #pragma once
 #include <vector>
 #include <math.h>
+#include <memory>
+#include <utility>
 
 namespace tcx{
-
-template<typename T = double>
-struct Point2D{
-    T x;
-    T y;
-};
-
-template<typename T = double>
-struct Point3D{
-    T x;
-    T y;
-    T z;
-};
-
-template<typename T = double>
-struct Range{
-    T start;
-    T stop;
-};
-
-
 
 struct IndependentVarDesc{
     double coefficient;
@@ -33,9 +14,10 @@ struct IndependentVarDesc{
 class PlaneFunction{
 private:
     std::vector<IndependentVarDesc> desc;
+
 public:
     PlaneFunction(std::vector<IndependentVarDesc> const& _desc):desc(_desc){}
-    
+
     double solution(double x) const noexcept{
         double y = 0;
         for(const auto&i:desc){
@@ -43,6 +25,8 @@ public:
         }
         return y;
     }
+
+    double operator()(double x) const noexcept{ return solution(x);}
     
     PlaneFunction derivative()const noexcept{
         PlaneFunction res = *this;
@@ -52,14 +36,15 @@ public:
         }
         return res;
     }
-    
-    std::vector<Point2D<double>> draw(Range<double> const& range, double interval)const noexcept{
-        std::vector<Point2D<double>> res;
-        for(double i = range.start; i<range.stop;i+=interval){
-            res.emplace_back(Point2D<double>{i,solution(i)});
+
+    std::vector<double> draw(double start, double stop, double interval) const noexcept{
+        std::vector<double> points;
+        for(double i = start; i<stop;i+=interval){
+            points.emplace_back(i);
+            points.emplace_back(solution(i));
         }
-        return res;
-    }
+        return points;
+    } 
 
 };
 

@@ -6,25 +6,25 @@
 #include <sstream>
 #include <limits>
 #include <math.h>
+#include <utility>
 
 namespace tcx
 {
-
-
 // basic ----------------------------------------------------
 
 template<typename T>
-struct Any2D{
+struct Point2D{
     T x;
     T y;
 };
 
 template<typename T>
-struct Any3D{
+struct Point3D{
     T x;
     T y;
     T z;
 };
+
 
 struct ColorRGBA{
     unsigned char r;
@@ -41,63 +41,89 @@ enum class ObjectType{
 };
 
 template<typename T>
-struct Object2D{
+struct Obj2D{
     ObjectType type;
-    Any2D<T> position;
+    T position[2];
+    T scale[2];
     T rotation;
-    Any2D<T> scale;
-    std::vector<Any2D<T>> shape;
     ColorRGBA color;
-    char* texture;
+    std::unique_ptr<char> texture;
+    std::vector<T> shape;
+
+    void move_by(T x, T y){
+        position[0] += x;
+        position[1] += y;
+    }
+    void move_to(T x, T y){
+        position[0] = x;
+        position[1] = y;
+    }
+    void set_scale(T x, T y){
+        scale[0]=x;
+        scale[1]=y;
+    }
 };
 
-
 template<typename T>
-Any2D<T> calculate_centroid(std::vector<Any2D<T>>const& points){
-    Any2D<T> res = {0,0};
-    for(auto & i : points){
-        res.x +=i.x;
-        res.y+= i.y;
+Point2D<T> calculate_centroid_2d(std::vector<T> const& points){
+    Point2D<T> res = {0,0};
+    bool flag = true;
+    for(const auto& i :points){
+        if(flag){
+            res.x+=i;
+        }else{
+            res.y+=i;
+        }
+        flag = !flag;
     }
-    res.x/=points.size();
-    res.y/=points.size();
+    res.x/=points.size()/2;
+    res.y/=points.size()/2;
     return res;
 }
 
+// template<typename T>
+// void rotate( Any2D<T>& rotate_point,Any2D<T> const& centroid, double radian){
+//     // radius
+//     T dx = centroid.x - rotate_point.x;
+//     T dy = centroid.y - rotate_point.y;
+//     T R = std::sqrt(std::pow(dx,2) + std::pow(dy,2));
+//     // angle 1
+//     double a1 = std::asin(dx/R);
+//     double a3 = radian + a1;
+//     dx = R * std::sin(a3);
+//     dy = R * std::cos(a3);
+//     rotate_point.x = centroid.x+dx;
+//     rotate_point.y = centroid.y+dy;
+//     return;
+// }
+
 template<typename T>
-void rotate( Any2D<T>& rotate_point,Any2D<T> const& centroid, double radian){
-    // radius
-    T dx = centroid.x - rotate_point.x;
-    T dy = centroid.y - rotate_point.y;
-    T R = std::sqrt(std::pow(dx,2) + std::pow(dy,2));
-    // angle 1
-    double a1 = std::asin(dx/R);
-    double a3 = radian + a1;
-    dx = R * std::sin(a3);
-    dy = R * std::cos(a3);
-    rotate_point.x = centroid.x+dx;
-    rotate_point.y = centroid.y+dy;
-    return;
+Obj2D<T> create_line(std::vector<T>&& points){
+    return {
+        ObjectType::T_1D,
+        {0,0},
+        {1,1},
+        0,
+        {1,1,1,1},
+        {nullptr},
+        std::move(points)
+    };
 }
 
 template<typename T>
-Object2D<T> create_point(Any2D<T>&& point){
-    return Object2D<T>{ObjectType::T_0D,{0,0},0,{1,1},{point},{1,1,1,1},0};
+Obj2D<T> create_polygon(std::vector<T>&& points){
+    return {
+        ObjectType::T_2D,
+        {0,0},
+        {1,1},
+        0,
+        {1,1,1,1},
+        {nullptr},
+        std::move(points)
+    };
 }
-
-template<typename T>
-Object2D<T> create_line(std::vector<Any2D<T>>&& points){
-    return Object2D<T>{ObjectType::T_1D,{0,0},0,{1,1},points,{1,1,1,1},0};
-}
-
-template<typename T>
-Object2D<T> create_polygon(std::vector<Any2D<T>>&& points){
-    return Object2D<T>{ObjectType::T_2D,{0,0},0,{1,1},points,{1,1,1,1},0};
-}
-
 
 // svg ----------------------------------------------------------------
-
 
 enum class SVGTag{
     T_RECT = 0,
@@ -125,17 +151,18 @@ std::string to_string(SVGTag tag){
 }
 
 struct SVGComponent{
-    SVGTag tag;
+    SVGTag tag = SVGTag::T_LINE;
     bool need_end=false;
-    std::vector<std::variant<char*,SVGComponent*>> content; // free for char* delete for SVCComponent*
-    std::unordered_map<std::string,std::string> marks;
+    std::vector<std::variant<char*,SVGComponent*>> content{}; // free for char* delete for SVCComponent*
+    std::unordered_map<std::string,std::string> marks{};
 };
 
 
-struct SVG{
+class SVG{
+private:
     double version = 1.1;
-    double width = 0;
-    double height = 0;
+    size_t width = 0;
+    size_t height = 0;
     std::unordered_map<std::string,std::string> marks;
     std::vector<std::variant<char*,SVGComponent*>> content;
 
@@ -173,11 +200,27 @@ struct SVG{
         }
     }
     
+    SVGTag get_svg_tag(Obj2D<double> const& obj){
+        SVGTag tag = SVGTag::T_POLYGON;
+        switch (obj.type)
+        {
+        case ObjectType::T_0D:
+        case ObjectType::T_1D:
+            if(obj.shape.size() <=4) tag = SVGTag::T_LINE;
+            else tag = SVGTag::T_POLYLINE;
+            break;
+        case ObjectType::T_2D:
+        default:
+            break;
+        }
+        return tag;
+    }
 
 public:
+    SVG(size_t _height, size_t _width):height(_height),width(_width){}
+    ~SVG(){ release();}
 
-    
-    std::string export_str() const{
+    std::string stringfy() const{
         std::stringstream ss;
         ss << "<svg width=\""<<std::floor(width)<<"\" height=\""<<std::floor(height)<<"\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\"";
         for(const auto& i : marks){
@@ -195,20 +238,11 @@ public:
         return ss.str();
     }
 
-    void add(Object2D<double> && obj){
-        SVGTag tag = SVGTag::T_POLYGON;
-        switch (obj.type)
-        {
-        case ObjectType::T_0D:
-        case ObjectType::T_1D:
-            if(obj.shape.size() <=2) tag = SVGTag::T_LINE;
-            else tag = SVGTag::T_POLYLINE;
-            break;
-        case ObjectType::T_2D:
-        default:
-            break;
-        }
-        SVGComponent* component = new SVGComponent{tag,false};
+    void add_obj(Obj2D<double> && obj){
+        SVGComponent* component = new SVGComponent;
+        component->tag = get_svg_tag(obj);
+        component->need_end = false;
+        component->marks={};
         component->content={};
         std::string color_str = "rgba("
             +std::to_string((int)std::round(obj.color.r))+","
@@ -216,58 +250,57 @@ public:
             +std::to_string((int)std::round(obj.color.b))+","
             +std::to_string((int)std::round(obj.color.a))+")";
 
-
         // color
-        if(tag ==  SVGTag::T_POLYGON){
+        if(component->tag ==  SVGTag::T_POLYGON){
             component->marks.emplace("fill",color_str);
-        }else if(tag ==  SVGTag::T_POLYLINE || tag ==  SVGTag::T_LINE){
+        }else if(component->tag ==  SVGTag::T_POLYLINE || component->tag ==  SVGTag::T_LINE){
             component->marks.emplace("stroke",color_str);
             component->marks.emplace("fill","transparent");
             component->marks.emplace("stroke-width","5");
         }
 
         // shape
-        if(tag ==  SVGTag::T_POLYGON || tag ==  SVGTag::T_POLYLINE){
-            std::string points;
-            Any2D<double> centroid = calculate_centroid(obj.shape);
-            for(auto& i :obj.shape){
-                // rotate(i,centroid,obj.rotation);
-                i.x*=obj.scale.x;
-                i.y*=obj.scale.y;
-                i.x+=obj.position.x;
-                i.y+= obj.position.y;
-                if(i.x>width) width = i.x;
-                if(i.y>height) height = i.y;
-                points+= std::to_string((unsigned int)std::round(i.x)) + ' ' + std::to_string((unsigned int)std::round(i.y)) + ", ";
+        std::string points;
+        Point2D<double> centroid = calculate_centroid_2d(obj.shape);
+        double* points_arr = obj.shape.data();
+        size_t points_count = obj.shape.size();
+        size_t cur_name = 1;
+        double center_x = width/2;
+        double center_y = height/2;
+        for(size_t i = 0 ;i< points_count;i+=2){
+            // rotate(i,centroid,obj.rotation);
+            points_arr[i]   *=  obj.scale[0];
+            points_arr[i+1] *=  obj.scale[1];
+            points_arr[i]   +=  obj.position[0];
+            points_arr[i+1] +=  obj.position[1];
+
+            points_arr[i] += center_x;
+            points_arr[i+1] = center_y - points_arr[i+1];
+
+            if(component->tag == SVGTag::T_POLYGON || component->tag == SVGTag::T_POLYLINE){
+                points+= std::to_string((int)std::round(points_arr[i])) + ' ' + std::to_string((int)std::round(points_arr[i+1])) + ", ";
             }
-            points.resize(points.size()-2);
-            component->marks.emplace("points",points);
-        }
-        else if (tag == SVGTag::T_LINE){
-            Any2D<double> centroid = calculate_centroid(obj.shape);
-            size_t cur_name = 1;
-            for(auto& i :obj.shape){
-                // rotate(i,centroid,obj.rotation);
-                i.x*=obj.scale.x;
-                i.y*=obj.scale.y;
-                i.x+=obj.position.x;
-                i.y+= obj.position.y;
-                if(i.x>width) width = i.x;
-                if(i.y>height) height = i.y;
-                component->marks.emplace("x"+std::to_string(cur_name),std::to_string((unsigned int)std::round(i.x)));
-                component->marks.emplace("y"+std::to_string(cur_name),std::to_string((unsigned int)std::round(i.y)));
+
+            else if (component->tag == SVGTag::T_LINE){
+                component->marks.emplace("x"+std::to_string(cur_name),std::to_string((unsigned int)std::round(points_arr[i])));
+                component->marks.emplace("y"+std::to_string(cur_name),std::to_string((unsigned int)std::round(points_arr[i+1])));
                 cur_name++;
             }
-            
         }
 
-        component->need_end = false;
+        points.resize(points.size()-2);
+        component->marks.emplace("points",points);
+
         std::variant<char*,SVGComponent*> each;
         each.emplace<1>(component);
         content.emplace_back(std::move(each));
         return;
     }
 
+    void add_axis(){
+        // SVGComponent* component = new SVGComponent;
+        
+    }
 
 };
 

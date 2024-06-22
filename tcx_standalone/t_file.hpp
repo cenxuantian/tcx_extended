@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <optional>
 #include <vector>
+#include <memory>
 
 namespace tcx
 {
@@ -252,7 +253,60 @@ public:
         return ::mkdir(temp.str().c_str()) == 0;
     }
 
-    
+
 };
+
+inline void fwrite(std::ofstream & ofs, char* buf, size_t sz){
+    ofs.write(buf,sz);
+}
+
+inline std::pair<std::unique_ptr<char>,size_t> fread(std::ifstream & ifs){
+    size_t org_pos = ifs.tellg();
+    ifs.seekg(org_pos,std::ios::end);
+    size_t last_pos = ifs.tellg();
+    size_t sz = last_pos-org_pos;
+    ifs.seekg(org_pos);
+
+    std::unique_ptr<char> res(new char[sz]);
+    ifs.read(res.get(),sz);
+    return {std::move(res),sz};
+}
+
+
+template<std::ios_base::openmode openmode = std::ios::binary>
+inline std::pair<std::unique_ptr<char>,size_t> read(std::string const& path){
+    std::ifstream ifs;
+    ifs.open(path,std::ios::in|openmode);
+    if(!ifs.is_open()) return {std::unique_ptr<char>(nullptr),0};
+    auto res(tcx::fread(ifs));
+    ifs.close();
+    return std::move(res);
+}
+
+template<std::ios_base::openmode openmode = std::ios::binary>
+inline bool overwrite(std::string const& path, char* buf, size_t sz){
+    std::ofstream ofs;
+    ofs.open(path,std::ios::trunc|openmode);
+    if(!ofs.is_open()) return false;
+    tcx::fwrite(ofs,buf,sz);
+    ofs.close();
+    return true;
+};
+
+template<std::ios_base::openmode openmode = std::ios::binary>
+inline bool append(std::string const& path, char* buf, size_t sz){
+    std::ofstream ofs;
+    ofs.open(path,std::ios::app|openmode);
+    if(!ofs.is_open()) return false;
+    tcx::fwrite(ofs,buf,sz);
+    ofs.close();
+    return true;
+};
+
+template<std::ios_base::openmode openmode = std::ios::binary>
+inline bool create(std::string const& path, char* buf, size_t sz){
+    return tcx::append(path,buf,sz);
+};
+
 
 } // namespace tcx
