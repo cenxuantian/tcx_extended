@@ -256,7 +256,7 @@ public:
         }else if(component->tag ==  SVGTag::T_POLYLINE || component->tag ==  SVGTag::T_LINE){
             component->marks.emplace("stroke",color_str);
             component->marks.emplace("fill","transparent");
-            component->marks.emplace("stroke-width","5");
+            component->marks.emplace("stroke-width","2");
         }
 
         // shape
