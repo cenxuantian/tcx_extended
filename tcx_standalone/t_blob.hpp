@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <string.h>
+#include <string>
 #include <type_traits>
 #include <functional>
 
@@ -282,6 +283,40 @@ public:
         }
     }
 
+    __usize find_first_of(unsigned char c){
+        for(__usize i = start_; i < size_;i++){
+            if(this->buf_[i] == c)return i-start_;
+        }
+        return std::string::npos;
+    }
+    __usize find_first_of(std::string const& c){
+        size_t sz = c.size();
+        unsigned char* compare_buf = (unsigned char*)c.data();
+        for(__usize i = start_; i < size_-sz+1;i++){
+            if(buf_[i] == compare_buf[0]){
+                if(memcmp(buf_+i,compare_buf,sz) == 0) return i-start_;
+            }
+        }
+        return std::string::npos;
+    }
+    __usize find_last_of(unsigned char c){
+        for(__usize i = start_+size_-1; i >= start_;i--){
+            if(this->buf_[i] == c)return i-start_;
+        }
+        return std::string::npos;
+    }
+    __usize find_first_not_of(unsigned char c){
+        for(__usize i = start_; i < size_;i++){
+            if(this->buf_[i] != c)return i-start_;
+        }
+        return std::string::npos;
+    }
+    __usize find_last_not_of(unsigned char c){
+        for(__usize i = start_+size_-1; i >= start_;i--){
+            if(this->buf_[i] != c)return i-start_;
+        }
+        return std::string::npos;
+    }
     // static
     static Blob take_over(void* _buf)noexcept {auto sz=__t_blob_msize(_buf); return Blob((__byte*)_buf,sz,0,sz);}
 
