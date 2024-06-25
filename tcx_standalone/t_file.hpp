@@ -10,6 +10,7 @@
 #include <optional>
 #include <vector>
 #include <memory>
+#include <windows.h>
 
 namespace tcx
 {
