@@ -298,8 +298,40 @@ public:
     }
 
     void add_axis(){
-        // SVGComponent* component = new SVGComponent;
-        
+        {
+            SVGComponent* component = new SVGComponent;
+            component->tag = SVGTag::T_LINE;
+            component->need_end = false;
+            component->marks={};
+            component->content={};
+            component->marks.emplace("stroke","rgba(0,0,255,1)");
+            component->marks.emplace("fill","transparent");
+            component->marks.emplace("stroke-width","1");
+            component->marks.emplace("x1","0");
+            component->marks.emplace("y1",std::to_string(height/2));
+            component->marks.emplace("x2",std::to_string(width));
+            component->marks.emplace("y2",std::to_string(height/2));
+            std::variant<char*,SVGComponent*> each;
+            each.emplace<1>(component);
+            content.emplace_back(std::move(each));
+        }
+        {
+            SVGComponent* component = new SVGComponent;
+            component->tag = SVGTag::T_LINE;
+            component->need_end = false;
+            component->marks={};
+            component->content={};
+            component->marks.emplace("stroke","rgba(0,255,0,1)");
+            component->marks.emplace("fill","transparent");
+            component->marks.emplace("stroke-width","1");
+            component->marks.emplace("x1",std::to_string(width/2));
+            component->marks.emplace("y1","0");
+            component->marks.emplace("x2",std::to_string(width/2));
+            component->marks.emplace("y2",std::to_string(height));
+            std::variant<char*,SVGComponent*> each;
+            each.emplace<1>(component);
+            content.emplace_back(std::move(each));
+        }
     }
 
 };

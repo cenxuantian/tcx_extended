@@ -37,6 +37,7 @@ int main(){
     tcx::SVG svg(300,300);
     svg.add_obj(std::move(obj2d));
     svg.add_obj(std::move(obj2d2));
+    svg.add_axis();
     
     std::ofstream ofs;
     std::string path = tcx::Path::cwd().cd("..").cd("test.svg").str();
