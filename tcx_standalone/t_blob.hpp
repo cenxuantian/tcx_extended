@@ -248,6 +248,7 @@ public:
     __usize pop_front(__usize _size)noexcept{
         if(size_>=_size){
             start_+=_size;
+            size_-=_size;
             return _size;
         }{
             __usize res = size_;
@@ -321,7 +322,6 @@ public:
     static Blob take_over(void* _buf)noexcept {auto sz=__t_blob_msize(_buf); return Blob((__byte*)_buf,sz,0,sz);}
 
 };
-
 
 
 } // namespace tcx

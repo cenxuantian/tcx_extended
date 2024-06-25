@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
+#include <iostream>
 #include "../tcx_standalone/t_blob.hpp"
 
 namespace tcx{
@@ -118,9 +119,48 @@ std::optional<HTTPRequest> HTTP_read_req(Blob & blob){
     catch(...) {return {};}
     req.version[0] =ver;
     req.version[1] =((double)ver-req.version[0])*10;
+    blob.pop_front(pos+2);
 
+    // get headers
+    std::string temp_key;
+    std::string temp_val;
+    get_header:
+    {
+        // gete key
+        pos = blob.find_first_not_of(' ');
+        if(pos == std::string::npos) return req;
+        blob.pop_front(pos);  // remove useless space
+        pos = blob.find_first_of(':');
+        if(pos == std::string::npos) return req;
+        temp_key.clear();
+        temp_key.assign((char*)blob.data(),pos);
+        blob.pop_front(pos+1);
+    }
+    {
+        // get val
+        pos = blob.find_first_not_of(' ');
+        if(pos == std::string::npos) return req;
+        blob.pop_front(pos);  // remove useless space
+        pos = blob.find_first_of("\r\n");
+        if(pos == std::string::npos) return req;
+        temp_val.clear();
+        temp_val.assign((char*)blob.data(),pos);
+        blob.pop_front(pos);// keep the \r
+    }
 
-    return req;
+    req.headers.emplace(std::move(temp_key),std::move(temp_val));
+    if(blob.size()>=4){
+        if(!buf_equal(blob.data(),4,"\r\n\r\n")){
+            blob.pop_front(2);
+            goto get_header;
+        }else{
+            blob.pop_front(4);
+            req.body = std::move(blob);
+            return req;
+        }
+    }else{
+        return req;
+    }
 }
 
 HTTPResponse HTTP_read_res(Blob & blob){
