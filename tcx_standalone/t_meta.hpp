@@ -1,5 +1,6 @@
-#pragma
+#pragma once
 
+#define tcx_requires(...) typename = typename std::enable_if_t<__VA_ARGS__>
 
 namespace tcx{
 
