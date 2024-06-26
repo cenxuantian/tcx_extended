@@ -21,6 +21,12 @@ namespace tcx
 {
 constexpr char strend = 0;
 
+struct BlobShadow{
+    unsigned char* buf_;
+    unsigned long long capacity_;
+    unsigned long long start_;
+    unsigned long long size_;
+};
 
 class Blob
 {
@@ -32,8 +38,8 @@ private:
     __usize start_;
     __usize size_;
 
-    void leak()noexcept{buf_ = 0;capacity_ = 0;start_=0;size_ = 0;}
-    void release_anyway()noexcept{if(capacity_) ::free(buf_);leak();}
+    void just_leak()noexcept{buf_ = 0;capacity_ = 0;start_=0;size_ = 0;}
+    void release_anyway()noexcept{if(capacity_) ::free(buf_);just_leak();}
     inline static __usize next_capacity(__usize _capacity)noexcept{return (_capacity+1)*2;}
     static __usize capacity_until_fit(__usize _capacity,__usize target)noexcept{
         while (target > _capacity) 
@@ -109,7 +115,7 @@ public:
     
     // cons & des
     Blob()noexcept:buf_(0),capacity_(0),start_(0),size_(0){}
-    Blob(Blob&& _other)noexcept:buf_(_other.buf_),capacity_(_other.capacity_),start_(_other.start_),size_(_other.size_){_other.leak();}
+    Blob(Blob&& _other)noexcept:buf_(_other.buf_),capacity_(_other.capacity_),start_(_other.start_),size_(_other.size_){_other.just_leak();}
     ~Blob(){release_anyway();}
 
     // operators
@@ -119,19 +125,19 @@ public:
         size_=_other.size_;
         capacity_=_other.capacity_;
         start_=_other.start_;
-        _other.leak();
+        _other.just_leak();
         return*this;
     }
     __byte& operator[](__usize pos){return buf_[pos+start_];}
     __byte const& operator[](__usize pos)const{return buf_[pos+start_];}
     
-    // push back
+    // auto sized push back
     template<typename T>
     Blob& operator<<(T&& data){
         overlap(std::forward<T&&>(data),size_);
         return *this;
     }
-    // push front
+    // auto sized push front
     template<typename T>
     Blob& operator>>(T&& data){
         insert(std::forward<T&&>(data),0);
@@ -206,6 +212,7 @@ public:
             buf_ = (__byte*)realloc(buf_,_capacity);
         }
     }
+    BlobShadow leak()noexcept{BlobShadow res={buf_,capacity_,start_,size_};just_leak();return res;}
 
     void overlap(char* pointer,__usize offset = 0){
         overlap_data(pointer,__t_blob_msize(pointer),offset);
