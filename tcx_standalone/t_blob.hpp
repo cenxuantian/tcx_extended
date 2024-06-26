@@ -208,6 +208,9 @@ public:
     void overlap(Blob const& _other,__usize offset = 0){
         overlap_data((void*)_other.data(),_other.size(),offset);
     }
+    void overlap(std::string const& _str, __usize offset = 0){
+        overlap_data((void*)_str.data(),_str.size(),offset);
+    }
     template<typename T, __my_requires(std::is_pointer_v<T>)>
     void overlap(T pointer,__usize offset = 0){
         overlap_data(pointer,__t_blob_msize(pointer),offset);
@@ -216,6 +219,7 @@ public:
     void overlap(T const& not_pointer,__usize offset = 0){
         overlap_data((void*)&not_pointer,sizeof(not_pointer),offset);
     }
+
 
     void insert(char* pointer,__usize offset = 0){
         insert_data(pointer,__t_blob_msize(pointer),offset);
@@ -285,7 +289,7 @@ public:
     }
 
     __usize find_first_of(unsigned char c){
-        for(__usize i = start_; i < size_;i++){
+        for(__usize i = start_; i < start_+size_;i++){
             if(this->buf_[i] == c)return i-start_;
         }
         return std::string::npos;
@@ -293,7 +297,7 @@ public:
     __usize find_first_of(std::string const& c){
         size_t sz = c.size();
         unsigned char* compare_buf = (unsigned char*)c.data();
-        for(__usize i = start_; i < size_-sz+1;i++){
+        for(__usize i = start_; i < start_+size_-sz+1;i++){
             if(buf_[i] == compare_buf[0]){
                 if(memcmp(buf_+i,compare_buf,sz) == 0) return i-start_;
             }
@@ -307,7 +311,7 @@ public:
         return std::string::npos;
     }
     __usize find_first_not_of(unsigned char c){
-        for(__usize i = start_; i < size_;i++){
+        for(__usize i = start_; i < start_+size_;i++){
             if(this->buf_[i] != c)return i-start_;
         }
         return std::string::npos;
