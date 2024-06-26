@@ -234,9 +234,9 @@ std::optional<HTTPResponse> HTTP_read_res(Blob & blob){
 Blob HTTP_to_blob(HTTPRequest const& req){
     Blob bin;
     bin << to_string(req.type) << ' ' << req.route
-        << " HTTP/"<< (int)(req.version[0]) <<'.'<< (int)(req.version[1]) <<"\r\n";
+        << " HTTP/"<< std::to_string(req.version[0]) <<'.'<< std::to_string(req.version[1]) <<"\r\n";
     for(const auto& i : req.headers){
-        bin << i.first << ": "<<i.second<<"\r\n";
+        bin << i.first << ": "<<i.second <<"\r\n";
     }
     bin << "\r\n"<<req.body<<0;
     return bin;
@@ -245,7 +245,7 @@ Blob HTTP_to_blob(HTTPRequest const& req){
 
 Blob HTTP_to_blob(HTTPResponse const& res){
     Blob bin;
-    bin << " HTTP/"<< (int)(res.version[0]) <<'.'<< (int)(res.version[1]) << ' ' 
+    bin << " HTTP/"<< std::to_string(res.version[0]) <<'.'<< std::to_string(res.version[1]) << ' ' 
         << res.status_code<<' '<<get_status_str(res.status_code) <<"\r\n";
     for(const auto& i : res.headers){
         bin << i.first << ": "<<i.second<<"\r\n";

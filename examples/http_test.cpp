@@ -15,6 +15,8 @@ int main(){
     "Accept-Language: zh-CN,zh;q=0.9\r\n\r\n";
 
     tcx::HTTPRequest req = tcx::HTTP_read_req(b).value_or(tcx::HTTPRequest{});
+    auto str = tcx::HTTP_to_blob(req);
+    std::cout << str.data();
 
     return 0;
 }
