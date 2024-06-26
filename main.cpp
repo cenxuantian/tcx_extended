@@ -27,6 +27,9 @@ void create_circle(std::vector<double>& points_circle1,std::vector<double>& poin
 }
 
 int main(){
+
+    
+
     std::vector<double> points_circle1;
     std::vector<double> points_circle2;
     create_circle(points_circle1,points_circle2);

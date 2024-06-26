@@ -206,7 +206,7 @@ public:
         overlap_data((void*)pointer,strlen(pointer),offset);
     }
     void overlap(Blob const& _other,__usize offset = 0){
-        overlap_data((void*)_other.buf_,_other.size(),offset);
+        overlap_data((void*)_other.data(),_other.size(),offset);
     }
     template<typename T, __my_requires(std::is_pointer_v<T>)>
     void overlap(T pointer,__usize offset = 0){

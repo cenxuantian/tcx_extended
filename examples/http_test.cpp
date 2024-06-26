@@ -2,7 +2,9 @@
 #include <t_meta.hpp>
 
 int main(){
+
     tcx::Blob b;
+
     b <<"GET http://jsuacm.cn/ HTTP/1.1\r\n"
     "Host: jsuacm.cn\r\n"
     "Connection: keep-alive\r\n"
