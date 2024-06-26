@@ -41,7 +41,7 @@ private:
         return _capacity;
     }
 
-    void insert_data(void* pointer, __usize size_of_pointer, __usize offset){
+    void insert_data(const void* pointer, __usize size_of_pointer, __usize offset){
         __usize front_free_size = start_;
         __usize back_free_size = capacity_-size_-start_;
         __usize total_free_size = front_free_size+back_free_size;
@@ -73,7 +73,7 @@ private:
             buf_=new_buf;
         }
     }
-    void overlap_data(void* pointer, __usize size_of_pointer, __usize offset){
+    void overlap_data(const void* pointer, __usize size_of_pointer, __usize offset){
         __usize after_size = start_ + offset + size_of_pointer;
         if(after_size > capacity_){
             __usize real_data_size = offset+size_of_pointer;
@@ -197,7 +197,15 @@ public:
         free(buf_);
         buf_=new_buf;
     }
-
+    void clear()noexcept{
+        size_ = 0;
+        start_ = 0;
+    }
+    void reserve(__usize _capacity)noexcept{
+        if(_capacity > capacity_){
+            buf_ = (__byte*)realloc(buf_,_capacity);
+        }
+    }
 
     void overlap(char* pointer,__usize offset = 0){
         overlap_data(pointer,__t_blob_msize(pointer),offset);
@@ -271,7 +279,9 @@ public:
         }
     }
 
-
+    void assign(const void* pointer, __usize size_of_pointer, __usize offset){
+        overlap_data(pointer,size_of_pointer,offset);
+    }
 
     template<typename T, typename FuncType,__my_requires(std::is_invocable_v<FuncType,std::decay_t<T> const&>)>
     void for_each(FuncType&& callback)const{

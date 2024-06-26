@@ -1,5 +1,6 @@
 #include <t_http_tools.hpp>
 #include <t_meta.hpp>
+#include <iostream>
 
 int main(){
 
@@ -17,6 +18,23 @@ int main(){
     tcx::HTTPRequest req = tcx::HTTP_read_req(b).value_or(tcx::HTTPRequest{});
     auto str = tcx::HTTP_to_blob(req);
     std::cout << str.data();
+
+    b.clear();
+
+    b << "HTTP/1.1 200 OK\r\n"
+        "Server: nginx/1.18.0 (Ubuntu)\r\n"
+        "Date: Wed, 20 Oct 2021 06:46:15 GMT\r\n"
+        "Content-Type: text/html; charset=UTF-8\r\n"
+        "Connection: keep-alive\r\n"
+        "Expires: Thu, 19 Nov 1981 08:52:00 GMT\r\n"
+        "Cache-Control: no-store, no-cache, must-revalidate\r\n"
+        "Pragma: no-cache\r\n"
+        "Content-Length: 737265\r\n\r\n";
+
+    tcx::HTTPResponse res = tcx::HTTP_read_res(b).value_or(tcx::HTTPResponse{});
+    str.clear();
+    str << tcx::HTTP_to_blob(res);
+     std::cout << str.data();
 
     return 0;
 }

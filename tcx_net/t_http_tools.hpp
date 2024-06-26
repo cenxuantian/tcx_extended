@@ -3,7 +3,6 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
-#include <iostream>
 #include "../tcx_standalone/t_blob.hpp"
 
 namespace tcx{
@@ -144,7 +143,7 @@ inline std::string get_status_str(int status_code){
         case 503: return "Service Unavailable";
         case 504: return "Gateway Time-out";
         case 505: return "HTTP Version not supported";
-        default: return "sStatus Error";
+        default:  return "Status Error";
     }
 }
 
@@ -228,6 +227,80 @@ std::optional<HTTPRequest> HTTP_read_req(Blob & blob){
 
 std::optional<HTTPResponse> HTTP_read_res(Blob & blob){
     HTTPResponse res;
+    // remove useless ' '
+    size_t pos = blob.find_first_not_of(' ');
+    if(pos == std::string::npos) return {};
+    blob.pop_front(pos);
+
+    // get version
+    pos = blob.find_first_of('/');
+    if(pos == std::string::npos) return {};
+    blob.pop_front(pos+1);
+    pos = blob.find_first_of(' ');
+    if(pos == std::string::npos) return {};
+    std::string temp;
+    temp.assign((char*)blob.data(),pos);
+    double ver;
+    try{ver = std::stod(temp);}
+    catch(...) {return {};}
+    res.version[0] =ver;
+    res.version[1] =((double)ver-res.version[0])*10;
+    blob.pop_front(pos+1);
+
+
+    // get code 
+    pos = blob.find_first_of(' ');
+    if(pos == std::string::npos) return {};
+    std::string code_str;
+    code_str.assign((char*)blob.data(),pos);
+    try{res.status_code = std::stoi(code_str);}catch(...){return {};}
+    blob.pop_front(pos+1);
+
+    // get headers prepare
+    pos = blob.find_first_of("\r\n");
+    if(pos == std::string::npos) return {};
+    blob.pop_front(pos+2);
+
+    // get headers
+    std::string temp_key;
+    std::string temp_val;
+    get_header:
+    {
+        // gete key
+        pos = blob.find_first_not_of(' ');
+        if(pos == std::string::npos) return res;
+        blob.pop_front(pos);  // remove useless space
+        pos = blob.find_first_of(':');
+        if(pos == std::string::npos) return res;
+        temp_key.clear();
+        temp_key.assign((char*)blob.data(),pos);
+        blob.pop_front(pos+1);
+    }
+    {
+        // get val
+        pos = blob.find_first_not_of(' ');
+        if(pos == std::string::npos) return res;
+        blob.pop_front(pos);  // remove useless space
+        pos = blob.find_first_of("\r\n");
+        if(pos == std::string::npos) return res;
+        temp_val.clear();
+        temp_val.assign((char*)blob.data(),pos);
+        blob.pop_front(pos);// keep the \r
+    }
+
+    res.headers.emplace(std::move(temp_key),std::move(temp_val));
+    if(blob.size()>=4){
+        if(!buf_equal(blob.data(),4,"\r\n\r\n")){
+            blob.pop_front(2);
+            goto get_header;
+        }else{
+            blob.pop_front(4);
+            res.body = std::move(blob);
+            return res;
+        }
+    }else{
+        return res;
+    }
     return res;
 }
 
@@ -242,18 +315,15 @@ Blob HTTP_to_blob(HTTPRequest const& req){
     return bin;
 }
 
-
 Blob HTTP_to_blob(HTTPResponse const& res){
     Blob bin;
-    bin << " HTTP/"<< std::to_string(res.version[0]) <<'.'<< std::to_string(res.version[1]) << ' ' 
-        << res.status_code<<' '<<get_status_str(res.status_code) <<"\r\n";
+    bin << "HTTP/"<< std::to_string(res.version[0]) <<'.'<< std::to_string(res.version[1]) << ' ' 
+        << std::to_string(res.status_code) <<' '<<get_status_str(res.status_code) <<"\r\n";
     for(const auto& i : res.headers){
         bin << i.first << ": "<<i.second<<"\r\n";
     }
     bin << "\r\n"<<res.body<<0;
     return bin;
 }
-
-
 
 }
