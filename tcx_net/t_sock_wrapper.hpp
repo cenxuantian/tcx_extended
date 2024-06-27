@@ -284,35 +284,39 @@ private:
     // make sure all buf has been write
     template<typename _Fn,typename ..._Args>
     bool __write_all(std::chrono::milliseconds const& _timeout,Blob const& buf,_Fn &&_fn, _Args &&...args){
+        auto start = std::chrono::system_clock::now();
         auto write_buf_size_res = get_write_bufsize();
         if(!write_buf_size_res.has_value())return false; // no write buf size
-
-        size_t write_buf_size = write_buf_size_res.value();
+        int write_buf_size = write_buf_size_res.value();
         const char* content = (const char*)buf.data();
-        size_t offset = 0;
-        size_t left_size = buf.size();
+        int offset = 0;
+        int left_size = buf.size();
+        bool wait_forever = _timeout == std::chrono::milliseconds(0)? true:false;
 
         try_send:
-        if(left_size<write_buf_size){
-            while (!writeable().value_or(false));// wait
-            int ret = ret = _fn(h_sock_,content+offset,(int)left_size,MSG_NOSIGNAL,std::forward<_Args>(args)...);
-            if(ret == SOCKET_ERROR)return false;
-            else if(left_size == ret){
-                return true;
-            }else{
-                offset+=ret;
-                left_size-=ret;
-                goto try_send;
-            }
-        }else{
-            while (!writeable().value_or(false));
-            int ret = _fn(h_sock_,content+offset,(int)write_buf_size,MSG_NOSIGNAL,std::forward<_Args>(args)...);
-            if(ret == SOCKET_ERROR)return false;
-            offset+=ret;
-            left_size-=ret;
-            goto try_send;
+        if(left_size<=0)return true;
+        int this_time_write_size =std::min(left_size,write_buf_size);
+
+        // wait
+        if(wait_forever) if(!await_writeable(_timeout).has_value()) return false;
+        else{
+            auto past_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
+            auto left_time = _timeout<=past_time?std::chrono::milliseconds(0):_timeout-past_time;
+            if(left_time != std::chrono::milliseconds(0)){
+                auto wait_res = await_writeable(left_time);
+                if(!wait_res.has_value()) return false;
+                else if(!wait_res.value()) return false;// currently con't read
+            }else return false;//await time out
         }
-        return true;
+
+        // write
+        int ret = ret = _fn(h_sock_,content+offset,this_time_write_size,MSG_NOSIGNAL,std::forward<_Args>(args)...);
+        if(ret == SOCKET_ERROR)return false;
+        else if(left_size == ret) return true;
+        offset+=ret;
+        left_size-=ret;
+        goto try_send;
+        return false;
     }
 
     // this func will call ::recv or ::recvfrom
@@ -324,78 +328,41 @@ private:
     template<typename _Fn,typename ..._Args>
     std::optional<Blob> __readall(std::chrono::milliseconds const& _timeout,int _size,_Fn &&_fn, _Args &&...args){
         auto start = std::chrono::system_clock::now();
-
         auto read_buf_size_res = get_read_bufsize();
         if(!read_buf_size_res.has_value()) return {};// no buf size
 
+        bool wait_forever = _timeout == std::chrono::milliseconds(0)? true:false;
         int read_buf_size = read_buf_size_res.value();
         Blob blob;
+        blob.reserve(_size);
+        int left_size = _size;
 
-        bool wait_forever;
-        if (_timeout == std::chrono::milliseconds(0)){
-            wait_forever = true;
-        }else{
-            wait_forever = false;
+        
+
+        try_read:
+        // prepare
+        if(left_size<=0) return blob;// read finish
+        int this_time_read_size = std::min(left_size,read_buf_size);
+
+        // wait
+        if(wait_forever) if(!await_readable(_timeout).has_value()) return {};
+        else{
+            auto past_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
+            auto left_time = _timeout<=past_time?std::chrono::milliseconds(0):_timeout-past_time;
+            if(left_time != std::chrono::milliseconds(0)){
+                auto wait_res = await_readable(left_time);
+                if(!wait_res.has_value()) return {};
+                else if(!wait_res.value()) {blob.pop_back(left_size); return blob;}// currently con't read
+            }
+            else {blob.pop_back(left_size); return blob;}//await time out
         }
         
-        try_read:
-        if(_size<read_buf_size){
-            if(_size<=0){
-                return blob;
-            }
-            if(wait_forever){
-                if(!await_readable(_timeout).has_value()) return {}; // error
-            }else{
-                auto past_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
-                auto left_time = _timeout<=past_time?std::chrono::milliseconds(0):_timeout-past_time;
-                if(left_time != std::chrono::milliseconds(0)){
-                    auto wait_res = await_readable(left_time);
-                    if(!wait_res.has_value())return {};// await error
-                    else if(!wait_res.value())return blob;// await time out
-                }
-                else return blob;// await time out
-                    
-            }
-            std::unique_ptr<char> buf(new char[_size]{0});
-            int ret =  _fn(h_sock_,buf.get(),_size,0,std::forward<_Args>(args)...);
-            if(ret == SOCKET_ERROR){
-                return false;
-            }else{
-                final_res.ignore().ArrBuf<Byte>::push_back((Byte const*)buf.get(),ret);
-            }
-            if(ret <_size){
-                _size-=ret;
-                goto try_read;
-            }else{
-                return final_res;
-            }
-        }else{
-            if(wait_forever){
-                if(!await_readable(_timeout).has_value()) return {};
-            }else{
-                auto past_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
-                auto left_time = _timeout<=past_time?std::chrono::milliseconds(0):_timeout-past_time;
-                if(left_time != std::chrono::milliseconds(0)){
-                    auto wait_res = await_readable(left_time);
-                    if(!wait_res.check()){
-                        return false;// await error
-                    }else if(!wait_res.ignore()){// await time out
-                        return final_res;
-                    }
-                }else{// await time out
-                    return final_res;
-                }
-            }
-            std::unique_ptr<char> buf(new char[_size]{0});
-            int ret =  _fn(h_sock_,buf.get(),read_buf_size,0,std::forward<_Args>(args)...);
-            if(ret == SOCKET_ERROR) return {};
-            else{
-                final_res.ignore().ArrBuf<Byte>::push_back((Byte const*)buf.get(),ret);
-            }
-            _size-=ret;
-            goto try_read;
-        }
-
+        // read
+        int ret =  _fn(h_sock_,(char*)blob.buf(_size-left_size),this_time_read_size,0,std::forward<_Args>(args)...);
+        if(ret == SOCKET_ERROR) return {};// error
+        left_size-=ret;
+        goto try_read;
+        
         return {};
     }
 
@@ -529,19 +496,20 @@ public:
     // return size writen
     // param 0 message to write    
     std::optional<int> write(Blob const& buf){return __write(buf,::send);}
+    // make sure write all the buffer content
+    bool write_all(Blob const& buf,std::chrono::milliseconds const& _timeout = std::chrono::milliseconds(0)){return __write_all(_timeout,buf,::send);}
     // socket sendto funtion
     // return size writen
     // param 0 message to write
     // param 1 target of udp
-    std::optional<int> write_to(Blob const& buf,IPAddr const& tar){
-        return __write(buf,::sendto,(sockaddr*)&tar.addr_in_,(int)sizeof(sockaddr_in));
-    }
+    std::optional<int> write_to(Blob const& buf,IPAddr const& tar){return __write(buf,::sendto,(sockaddr*)&tar.addr_in_,(int)sizeof(sockaddr_in));}
+    // make sure write all the buffer content
+    bool write_all_to(Blob const& buf, IPAddr const& tar,std::chrono::milliseconds const& _timeout = std::chrono::milliseconds(0)){return __write_all(_timeout,buf,::sendto,(sockaddr*)&tar.addr_in_,(int)sizeof(sockaddr_in));}
     // socket recv function
     // param 0 size to read
     // if data in read buf is not enough will return ok(readsize)
-    std::optional<Blob> readsome(int _expect_size){
-        return __readsome(_expect_size,::recv);
-    }
+    std::optional<Blob> readsome(int _expect_size){return __readsome(_expect_size,::recv);}
+    std::optional<Blob> readall(int _expect_size,std::chrono::milliseconds const& _timeout = std::chrono::milliseconds(0)){return __readall(_timeout,_expect_size,::recv);}
     // socet recvfrom function
     // param 0 size to read
     // param 1 target of udp
@@ -554,6 +522,15 @@ public:
 #endif
         return __readsome(_expect_size,::recvfrom,(sockaddr*)&tar.addr_in_,&addr_len);
     }
+    std::optional<Blob> readall_from(int _expect_size, IPAddr const& tar,std::chrono::milliseconds const& _timeout = std::chrono::milliseconds(0)){
+#ifdef __linux__
+        socklen_t addr_len = sizeof(sockaddr_in);
+#elif defined(_WIN32)
+        int addr_len = sizeof(sockaddr_in);
+#endif
+        return __readall(_timeout,_expect_size,::recvfrom,(sockaddr*)&tar.addr_in_,&addr_len);
+    }
+
     // socket select function
     // return 0 error
     // return 1 recv

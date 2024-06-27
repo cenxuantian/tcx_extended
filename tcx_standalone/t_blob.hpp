@@ -184,7 +184,9 @@ public:
 
     // funcs
     __byte const* data(__usize _offset = 0)const noexcept {return buf_+_offset+start_;}
+    void* buf(__usize _offset = 0)noexcept{return (void*)(buf_+_offset+start_);}
     __byte const* original_data()const noexcept{return buf_;}
+    void* original_buf()const noexcept{return (void*)buf_;}
     __usize capacity()const noexcept{return capacity_;}
     __usize size()const noexcept{return size_;}
     Blob completely_clone()const noexcept{
@@ -250,9 +252,8 @@ public:
         insert_data(pointer,__t_blob_msize(pointer),offset);
     }
     template<typename T, __my_requires(!std::is_pointer_v<T>)>
-    void insert(T const& not_pointer,__usize offset = 0){
-        insert_data((void*)&not_pointer,sizeof(not_pointer),offset);
-    }
+    void insert(T const& not_pointer,__usize offset = 0){insert_data((void*)&not_pointer,sizeof(not_pointer),offset);}
+
     __usize pop_back(__usize _size) noexcept{
         if(size_>=_size){
             size_-=_size;
@@ -286,9 +287,9 @@ public:
         }
     }
 
-    void assign(const void* pointer, __usize size_of_pointer, __usize offset){
-        overlap_data(pointer,size_of_pointer,offset);
-    }
+    void assign(const void* pointer, __usize size_of_pointer, __usize offset){overlap_data(pointer,size_of_pointer,offset);}
+    void assign_back(const void* pointer, __usize size_of_pointer){overlap_data(pointer,size_of_pointer,start_);}
+    void assign_front(const void* pointer, __usize size_of_pointer){insert_data(pointer,size_of_pointer,0);}
 
     template<typename T, typename FuncType,__my_requires(std::is_invocable_v<FuncType,std::decay_t<T> const&>)>
     void for_each(FuncType&& callback)const{
