@@ -362,7 +362,6 @@ private:
         if(ret == SOCKET_ERROR) return {};// error
         left_size-=ret;
         goto try_read;
-        
         return {};
     }
 
