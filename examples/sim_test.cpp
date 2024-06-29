@@ -4,30 +4,33 @@
 
 
 
-class Box:public tcx::Object{
+using namespace tcx;
+
+
+class Box:public sim::Object{
     int x;
     int y;
 public:
-    Box(tcx::Env& env):tcx::Object(env){}
+    Box(sim::Env& env):sim::Object(env){}
     ~Box(){}
-    tcx::SimCoro start(){
+    sim::Coro start(){
         x = 0;
         y = 0;
-        co_await this->env_.sleep(10);
+        co_await envref_.sleep(10);
         x = 10;
         y = 10;
-        co_await this->env_.sleep(10);
+        co_await envref_.sleep(10);
         x = 20;
         y = 20;
     }
     void stop(){}
     void tick(size_t step_){
-        std::cout << env_.now() << " x:"<<x<<" y:"<<y<<'\n';
+        std::cout << envref_.now() << " x:"<<x<<" y:"<<y<<'\n';
     }
 };
 
 int main(){
-    tcx::Env env;
+    sim::Env env;
     Box b(env);
     env.run(30);
 

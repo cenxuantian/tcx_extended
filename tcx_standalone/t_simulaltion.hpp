@@ -7,39 +7,44 @@
 #include <future>
 #include <queue>
 #include <coroutine>
+#include <any>
 
 namespace tcx{
-class Object;
-class Env;
-class EnvRef;
+namespace sim{
 
-struct SimSus
-{
+struct Sus;
+class Coro;
+class Object;
+class EnvRef;
+class Env;
+class Evnet;
+
+struct Sus{
 private:
     const size_t steps_;
 public:
-    SimSus(size_t wait_step):steps_(wait_step){}
-    constexpr bool await_ready() const noexcept { return steps_==0;}
+    Sus(size_t wait_step):steps_(wait_step){}
+    constexpr bool await_ready() const noexcept {return steps_==0;}
     constexpr void await_suspend(std::coroutine_handle<>) const noexcept {}
     constexpr void await_resume() const noexcept {}
 };
 
-class SimCoro{
+class Coro{
 public:
     struct promise_type{
-        SimCoro get_return_object(){
-            return SimCoro(std::coroutine_handle<promise_type>::from_promise(*this));
+        Coro get_return_object(){
+            return Coro(std::coroutine_handle<promise_type>::from_promise(*this));
         }
         auto initial_suspend()noexcept {return std::suspend_never{};};
-        auto final_suspend()noexcept {return std::suspend_never{};};
+        auto final_suspend()noexcept {return std::suspend_always{};};
         auto yield_value()noexcept{return std::suspend_never{};}
         void return_value() noexcept{}
         void unhandled_exception(){}
     };
 
     std::coroutine_handle<promise_type> handle;
-    explicit SimCoro(std::coroutine_handle<promise_type> const& h):handle(h){}
-    ~SimCoro(){handle.destroy();}
+    explicit Coro(std::coroutine_handle<promise_type> const& h):handle(h){}
+    ~Coro(){handle.destroy();}
     void resume(){handle.resume();}
 };
 
@@ -48,30 +53,32 @@ class EnvRef{
 private:
     Env& env_;
     Object* ref_by_;
+    void set_ref(Object* obj);
+    EnvRef(Env& env);
 public:
-    EnvRef(Env& env):env_(env),ref_by_(nullptr){}
-    void set_ref(Object* obj){ref_by_ = obj;}
     size_t now();
-    SimSus sleep(size_t steps);
+    Sus sleep(size_t steps);
+    template<typename _Fn,typename ... _Args>
+    void set_timeout(_Fn &&f,size_t _time_out, _Args &&...args);
 };
 
 class Object{
     friend class Env;
+private:
+    // this function will call the start()
+    void  __start();
 protected:
-    EnvRef env_;
-    SimCoro* pco_=nullptr;
-    void  __start(){
-        if(pco_){delete pco_;pco_=nullptr;}
-        pco_ = new SimCoro(this->start());
-    }
+    // the reference of emvironments
+    EnvRef envref_; 
+    // the coroutine of running start() function
+    Coro* pco_=nullptr;
 public:
     Object(Env& env);
     ~Object();
-    virtual SimCoro start() = 0;
+    virtual Coro start() = 0;
     virtual void stop() = 0;
     virtual void tick(size_t step_) = 0;
 };
-
 
 class Env{
     friend class Object;
@@ -82,77 +89,125 @@ private:
         STARTED = 1,
         STOPPING = 2,
     };
-    struct Task{
+    struct CoroTask{
         size_t step;
         Object* target;
-        bool operator<(Task const& other) const noexcept{return step<other.step;}
-        bool operator==(size_t num) const noexcept{return step==num;}
+        bool operator<(CoroTask const& other)const noexcept;
+        bool operator==(size_t num)const noexcept;
     };
     Status status_ = Status::STOPPED;
     size_t step_ = 0;
     std::unordered_set<Object*> objs_;
-    std::priority_queue<Task> queue_;
-
-    size_t now(){return step_;}
+    std::priority_queue<CoroTask> CoroTask_queue_;
+    size_t __now() const noexcept;
 public:
-    void run(size_t max_step = std::string::npos){
-        if(this->status_==Status::STOPPED){
-            for(auto& i : objs_){
-                i->__start();
-            }
-            status_ = Status::STARTED;
-
-            while(status_ == Status::STARTED && (max_step == std::string::npos || step_<=max_step)){
-                loop:
-                if(queue_.size()){
-                    if(queue_.top() == step_){
-                        Object* tar = queue_.top().target;
-                        queue_.pop();
-                        if(tar) if(tar->pco_) tar->pco_->resume();
-                        goto loop;
-                    }
-                }
-
-                for(auto& i : objs_){
-                    i->tick(step_);
-                }
-                step_++;
-            }
-
-            for(auto& i : objs_){
-                i->stop();
-            }
-            status_ = Status::STOPPED;
-        }else{
-            // connot run
-        }
-    }
-    void stop(){
-        if(this->status_==Status::STARTED){
-            this->status_ == Status::STOPPING;
-        }
-        else {
-            // cannot stop
-        }
-    }
+    void run(size_t max_step = std::string::npos);
+    void stop();
 };
 
-size_t EnvRef::now(){return env_.now();}
-SimSus EnvRef::sleep(size_t steps){
-    if(steps != 0)env_.queue_.emplace(steps+env_.step_,(Object*)ref_by_);
-    return SimSus{steps};
+class Event{
+private:
+    bool done_;
+    std::any ret_;
+    const size_t timeout_;
+    std::function<void()> func_;
+public:
+    template<typename _Fn,typename ... _Args>
+    Event(size_t _time_out,_Fn &&f, _Args &&...args);
+    bool done()const noexcept;
+    void trigger();
+    template<typename T> 
+    T& get_ret();
+    bool operator<(Event const& other)const noexcept;
+    bool operator==(size_t num)const noexcept;
+};
+
+// ----------------- impl -----------------------------
+
+
+// Env
+size_t Env::__now() const noexcept{
+    return step_;
+}
+bool Env::CoroTask::operator<(CoroTask const& other)const noexcept{
+    return step<other.step;
+}
+bool Env::CoroTask::operator==(size_t num)const noexcept{
+    return step==num;
+}
+void Env::run(size_t max_step){
+    if(this->status_==Status::STOPPED){
+        for(auto& i : objs_){
+            i->__start();
+        }
+        status_ = Status::STARTED;
+
+        while(status_ == Status::STARTED && (max_step == std::string::npos || step_<=max_step)){
+            loop:
+            if(CoroTask_queue_.size()){
+                if(CoroTask_queue_.top() == step_){
+                    Object* tar = CoroTask_queue_.top().target;
+                    CoroTask_queue_.pop();
+                    if(tar) if(tar->pco_) tar->pco_->resume();
+                    goto loop;
+                }
+            }
+
+            for(auto& i : objs_){
+                i->tick(step_);
+            }
+            step_++;
+        }
+
+        for(auto& i : objs_){
+            i->stop();
+        }
+        status_ = Status::STOPPED;
+    }else{
+        // connot run
+    }
+}
+void Env::stop(){
+    if(this->status_==Status::STARTED){
+        this->status_ == Status::STOPPING;
+    }
+    else {
+        // cannot stop
+    }
 }
 
-Object::Object(Env& env):env_(env){
-    env_.set_ref(this);
-    env_.env_.objs_.emplace(this);
-    
+// EnvRef
+EnvRef::EnvRef(Env& env):env_(env),ref_by_(nullptr){
+    // no operations
+}
+size_t EnvRef::now(){
+    return env_.__now();
+}
+Sus EnvRef::sleep(size_t steps){
+    if(steps != 0)env_.CoroTask_queue_.emplace(steps+env_.step_,(Object*)ref_by_);
+    return Sus{steps};
+}
+void EnvRef::set_ref(Object* obj){
+    ref_by_ = obj;
+}
+
+
+// Object
+Object::Object(Env& env):envref_(env){
+    envref_.set_ref(this);
+    envref_.env_.objs_.emplace(this);
 }
 Object::~Object(){
-    env_.env_.objs_.erase(this);
+    envref_.env_.objs_.erase(this);
     if (pco_) {
         delete pco_;
         pco_=nullptr;
     }
 }
+void  Object::__start(){
+    if(pco_){delete pco_;pco_=nullptr;}
+    pco_ = new Coro(this->start());
 }
+
+
+}}
