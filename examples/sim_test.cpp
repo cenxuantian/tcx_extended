@@ -6,7 +6,6 @@
 
 using namespace tcx;
 
-
 class Box:public sim::Object{
     int x;
     int y;
@@ -16,6 +15,10 @@ public:
     sim::Coro start(){
         x = 0;
         y = 0;
+
+        envref_.set_timeout([&](){
+            std::cout << envref_.now() <<'\n';
+        },15);
         co_await envref_.sleep(10);
         x = 10;
         y = 10;

@@ -60,6 +60,7 @@ public:
     Sus sleep(size_t steps);
     template<typename _Fn,typename ... _Args>
     void set_timeout(_Fn &&f,size_t _time_out, _Args &&...args);
+    std::unordered_set<Object*>& obj_list();
 };
 
 class Object{
@@ -80,6 +81,24 @@ public:
     virtual void tick(size_t step_) = 0;
 };
 
+
+class Event{
+    friend class Env;
+    friend class EnvRef;
+private:
+    bool done_;
+    size_t step_;
+    std::function<void()> func_;
+    bool operator==(size_t num)const noexcept;
+    template<typename _Fn,typename ... _Args>
+    Event(size_t _step,_Fn &&f, _Args &&...args);
+public:
+    bool operator<(Event const& other)const noexcept;
+    bool done()const noexcept;
+    void trigger();
+};
+
+
 class Env{
     friend class Object;
     friend class EnvRef;
@@ -98,32 +117,39 @@ private:
     Status status_ = Status::STOPPED;
     size_t step_ = 0;
     std::unordered_set<Object*> objs_;
-    std::priority_queue<CoroTask> CoroTask_queue_;
+    std::priority_queue<CoroTask> corotask_queue_;
+    std::priority_queue<Event> event_queue_;
     size_t __now() const noexcept;
 public:
     void run(size_t max_step = std::string::npos);
     void stop();
 };
 
-class Event{
-private:
-    bool done_;
-    std::any ret_;
-    const size_t timeout_;
-    std::function<void()> func_;
-public:
-    template<typename _Fn,typename ... _Args>
-    Event(size_t _time_out,_Fn &&f, _Args &&...args);
-    bool done()const noexcept;
-    void trigger();
-    template<typename T> 
-    T& get_ret();
-    bool operator<(Event const& other)const noexcept;
-    bool operator==(size_t num)const noexcept;
-};
 
 // ----------------- impl -----------------------------
 
+// Event
+template<typename _Fn,typename ... _Args>
+Event::Event(size_t _step,_Fn &&f, _Args &&...args){
+    std::function<decltype(f(args...))()> func = std::bind(std::forward<_Fn>(f), std::forward<_Args>(args)...);
+    auto task_ptr = std::make_shared<std::packaged_task<decltype(f(args...))()>>(func);
+    this->func_ = [task_ptr]() {(*task_ptr)();};
+    this->step_ = _step;
+    this->done_ = false;
+}
+bool Event::operator<(Event const& other)const noexcept{
+    return step_<other.step_;
+}
+bool Event::operator==(size_t num)const noexcept{
+    return step_==num;
+}
+bool Event::done()const noexcept{
+    return done_;
+}
+void Event::trigger(){
+    func_();
+    done_=true;
+}
 
 // Env
 size_t Env::__now() const noexcept{
@@ -143,13 +169,21 @@ void Env::run(size_t max_step){
         status_ = Status::STARTED;
 
         while(status_ == Status::STARTED && (max_step == std::string::npos || step_<=max_step)){
-            loop:
-            if(CoroTask_queue_.size()){
-                if(CoroTask_queue_.top() == step_){
-                    Object* tar = CoroTask_queue_.top().target;
-                    CoroTask_queue_.pop();
+            run_coro:
+            if(corotask_queue_.size()){
+                if(corotask_queue_.top() == step_){
+                    Object* tar = corotask_queue_.top().target;
+                    corotask_queue_.pop();
                     if(tar) if(tar->pco_) tar->pco_->resume();
-                    goto loop;
+                    goto run_coro;
+                }
+            }
+            run_event:
+            if(event_queue_.size()){
+                if(event_queue_.top() == step_){
+                    const_cast<Event&>(event_queue_.top()).trigger();
+                    event_queue_.pop();
+                    goto run_event;
                 }
             }
 
@@ -184,13 +218,22 @@ size_t EnvRef::now(){
     return env_.__now();
 }
 Sus EnvRef::sleep(size_t steps){
-    if(steps != 0)env_.CoroTask_queue_.emplace(steps+env_.step_,(Object*)ref_by_);
+    if(steps != 0)env_.corotask_queue_.emplace(steps+env_.step_,(Object*)ref_by_);
     return Sus{steps};
 }
 void EnvRef::set_ref(Object* obj){
     ref_by_ = obj;
 }
-
+template<typename _Fn,typename ... _Args>
+void EnvRef::set_timeout(_Fn &&f,size_t _timeout, _Args &&...args){
+    if(_timeout==0){
+        f(args...);
+        return;
+    }
+    env_.event_queue_.emplace(Event(_timeout+env_.__now(),std::forward<_Fn&&>(f),std::forward<_Args>(args)...));
+    return;
+}
+std::unordered_set<Object*>& EnvRef::obj_list(){return env_.objs_;}
 
 // Object
 Object::Object(Env& env):envref_(env){
