@@ -7,7 +7,7 @@
 #include <future>
 #include <queue>
 #include <coroutine>
-#include <any>
+#include <map>
 
 namespace tcx{
 namespace sim{
@@ -19,7 +19,83 @@ class EnvRef;
 class Env;
 class Evnet;
 
-struct Sus{
+
+class Object{
+public:
+    friend class Env;
+private:
+    // this function will call the start()
+    virtual void  __start() final;
+    virtual void __resume() final;
+    virtual void __release() final;
+protected:
+    // the coroutine of running start() function
+    Coro* pco_=nullptr;
+public:
+    Env* env;
+    virtual ~Object() = 0;
+    virtual Coro start() = 0;
+    virtual void stop() = 0;
+    virtual void tick(size_t step_) = 0;
+
+};
+
+class Event{
+    friend class Env;
+    friend class EnvRef;
+private:
+    bool done_;
+    size_t step_;
+    std::function<void()> func_;
+    bool operator==(size_t num)const noexcept;
+    template<typename _Fn,typename ... _Args>
+    Event(size_t _step,_Fn &&f, _Args &&...args);
+public:
+    bool operator<(Event const& other)const noexcept;
+    bool done()const noexcept;
+    void trigger();
+};
+
+class Env final{
+    friend class Object;
+    friend class EnvRef;
+private:
+    enum class Status{
+        STOPPED = 0,
+        STARTED = 1,
+        STOPPING = 2,
+    };
+    Status status_ = Status::STOPPED;
+    size_t step_ = 0;
+    std::unordered_set<Object*> objs_;
+    std::map<size_t,std::unordered_set<Object*>> corotasks_;
+    std::priority_queue<Event> event_queue_;
+
+public:
+    ~Env();
+    // run the environment
+    void run(size_t max_step = std::string::npos);
+    // stop the env
+    void stop();
+    // get current step
+    size_t now() const noexcept;
+    // sleep for single item
+    Sus sleep(Object* tar,size_t steps);
+    // add asyn event
+    template<typename _Fn,typename ... _Args>
+    void set_timeout(_Fn &&f,size_t _time_out, _Args &&...args);
+    // get obj list
+    std::unordered_set<Object*>& obj_list();
+    // create
+    template<typename T, typename ...Args>
+    requires(std::is_base_of_v<Object,T>)
+    T* emplace_obj(Args&& ...args);
+    template<typename T>
+    requires(std::is_base_of_v<Object,T>)
+    void erase_obj(T* obj);
+};
+
+struct Sus final{
 private:
     const size_t steps_;
 public:
@@ -29,7 +105,7 @@ public:
     constexpr void await_resume() const noexcept {}
 };
 
-class Coro{
+class Coro final{
 public:
     struct promise_type{
         Coro get_return_object(){
@@ -48,82 +124,8 @@ public:
     void resume(){handle.resume();}
 };
 
-class EnvRef{
-    friend class Object;
-private:
-    Env& env_;
-    Object* ref_by_;
-    void set_ref(Object* obj);
-    EnvRef(Env& env);
-public:
-    size_t now();
-    Sus sleep(size_t steps);
-    template<typename _Fn,typename ... _Args>
-    void set_timeout(_Fn &&f,size_t _time_out, _Args &&...args);
-    std::unordered_set<Object*>& obj_list();
-};
-
-class Object{
-    friend class Env;
-private:
-    // this function will call the start()
-    void  __start();
-protected:
-    // the reference of emvironments
-    EnvRef envref_; 
-    // the coroutine of running start() function
-    Coro* pco_=nullptr;
-public:
-    Object(Env& env);
-    ~Object();
-    virtual Coro start() = 0;
-    virtual void stop() = 0;
-    virtual void tick(size_t step_) = 0;
-};
 
 
-class Event{
-    friend class Env;
-    friend class EnvRef;
-private:
-    bool done_;
-    size_t step_;
-    std::function<void()> func_;
-    bool operator==(size_t num)const noexcept;
-    template<typename _Fn,typename ... _Args>
-    Event(size_t _step,_Fn &&f, _Args &&...args);
-public:
-    bool operator<(Event const& other)const noexcept;
-    bool done()const noexcept;
-    void trigger();
-};
-
-
-class Env{
-    friend class Object;
-    friend class EnvRef;
-private:
-    enum class Status{
-        STOPPED = 0,
-        STARTED = 1,
-        STOPPING = 2,
-    };
-    struct CoroTask{
-        size_t step;
-        Object* target;
-        bool operator<(CoroTask const& other)const noexcept;
-        bool operator==(size_t num)const noexcept;
-    };
-    Status status_ = Status::STOPPED;
-    size_t step_ = 0;
-    std::unordered_set<Object*> objs_;
-    std::priority_queue<CoroTask> corotask_queue_;
-    std::priority_queue<Event> event_queue_;
-    size_t __now() const noexcept;
-public:
-    void run(size_t max_step = std::string::npos);
-    void stop();
-};
 
 
 // ----------------- impl -----------------------------
@@ -138,7 +140,7 @@ Event::Event(size_t _step,_Fn &&f, _Args &&...args){
     this->done_ = false;
 }
 bool Event::operator<(Event const& other)const noexcept{
-    return step_<other.step_;
+    return step_>other.step_;
 }
 bool Event::operator==(size_t num)const noexcept{
     return step_==num;
@@ -151,15 +153,29 @@ void Event::trigger(){
     done_=true;
 }
 
+
 // Env
-size_t Env::__now() const noexcept{
+Env::~Env(){
+    for(auto& i:objs_){
+        i->__release();
+        delete i;
+    }
+}
+size_t Env::now() const noexcept{
     return step_;
 }
-bool Env::CoroTask::operator<(CoroTask const& other)const noexcept{
-    return step<other.step;
+Sus Env::sleep(Object* tar,size_t steps){
+    if(steps != 0){
+        if(corotasks_.count(steps+step_)){
+            corotasks_[steps+step_].emplace(tar);
+        }else{
+            corotasks_.emplace(steps+step_,std::unordered_set<Object*>{tar});
+        }
+    }
+    return Sus{steps};
 }
-bool Env::CoroTask::operator==(size_t num)const noexcept{
-    return step==num;
+std::unordered_set<Object*>& Env::obj_list(){
+    return this->objs_;
 }
 void Env::run(size_t max_step){
     if(this->status_==Status::STOPPED){
@@ -169,15 +185,13 @@ void Env::run(size_t max_step){
         status_ = Status::STARTED;
 
         while(status_ == Status::STARTED && (max_step == std::string::npos || step_<=max_step)){
-            run_coro:
-            if(corotask_queue_.size()){
-                if(corotask_queue_.top() == step_){
-                    Object* tar = corotask_queue_.top().target;
-                    corotask_queue_.pop();
-                    if(tar) if(tar->pco_) tar->pco_->resume();
-                    goto run_coro;
+            if(corotasks_.count(step_)){
+                for(Object* each: corotasks_[step_]){
+                    each->pco_->handle.resume();
                 }
+                corotasks_.erase(step_);
             }
+
             run_event:
             if(event_queue_.size()){
                 if(event_queue_.top() == step_){
@@ -209,48 +223,51 @@ void Env::stop(){
         // cannot stop
     }
 }
-
-// EnvRef
-EnvRef::EnvRef(Env& env):env_(env),ref_by_(nullptr){
-    // no operations
-}
-size_t EnvRef::now(){
-    return env_.__now();
-}
-Sus EnvRef::sleep(size_t steps){
-    if(steps != 0)env_.corotask_queue_.emplace(steps+env_.step_,(Object*)ref_by_);
-    return Sus{steps};
-}
-void EnvRef::set_ref(Object* obj){
-    ref_by_ = obj;
-}
 template<typename _Fn,typename ... _Args>
-void EnvRef::set_timeout(_Fn &&f,size_t _timeout, _Args &&...args){
+void Env::set_timeout(_Fn &&f,size_t _timeout, _Args &&...args){
     if(_timeout==0){
         f(args...);
         return;
     }
-    env_.event_queue_.emplace(Event(_timeout+env_.__now(),std::forward<_Fn&&>(f),std::forward<_Args>(args)...));
+    event_queue_.emplace(Event(_timeout+step_,std::forward<_Fn&&>(f),std::forward<_Args>(args)...));
     return;
 }
-std::unordered_set<Object*>& EnvRef::obj_list(){return env_.objs_;}
+template<typename T, typename ...Args>
+requires(std::is_base_of_v<Object,T>)
+T* Env::emplace_obj(Args&& ...args){
+    T* res = new T(std::forward<Args&&>(args)...);
+    res->env = this;
+    this->objs_.emplace(res);
+    return res;
+}
+template<typename T>
+requires(std::is_base_of_v<Object,T>)
+void Env::erase_obj(T* obj){
+    if(this->objs_.count(obj)){
+        this->objs_.erase(obj);
+        obj->__release();
+        delete obj;
+    }
+}
+
 
 // Object
-Object::Object(Env& env):envref_(env){
-    envref_.set_ref(this);
-    envref_.env_.objs_.emplace(this);
+Object::~Object(){}
+void  Object::__start(){
+    if(pco_){delete pco_;pco_=nullptr;}
+    pco_ = new Coro(this->start());
 }
-Object::~Object(){
-    envref_.env_.objs_.erase(this);
+void Object::__resume(){
+    if(this->pco_) this->pco_->resume();
+    else {
+        return;
+    }
+}
+void Object::__release(){
     if (pco_) {
         delete pco_;
         pco_=nullptr;
     }
 }
-void  Object::__start(){
-    if(pco_){delete pco_;pco_=nullptr;}
-    pco_ = new Coro(this->start());
-}
-
 
 }}
