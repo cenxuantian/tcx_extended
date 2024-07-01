@@ -6,21 +6,13 @@
 
 
 using namespace tcx;
-
 class Car: public sim::Object{
 public:
-    double pos_x;
-    double pos_y;
-    double speed;
-    double acceleration;
-    double towards;
-    Car(){
-        pos_x = 0;
-        pos_y = 0;
-        towards = M_PI / 4;
-        acceleration=0;
-        speed = 0;
-    }
+    double pos = 0;
+    double speed = 0;
+    double acceleration = 0;
+    bool forward = true;
+    Car(){}
     void move(){
         speed+=acceleration;
         if(speed < 0) {
@@ -28,61 +20,42 @@ public:
             acceleration = 0;
         }
         double dist = speed*1;
-        pos_x+=dist / std::cos(towards);
-        pos_y+=dist / std::sin(towards);
+        if(forward) pos+=dist;
+        else pos-=dist;
     }
     sim::Coro start(){
+        env->log("%X start on pos: %d forward: %d",this,pos,forward);
         co_await env->sleep(this,3);
-        std::cout << this << " 1\n";
         acceleration = 3;
+        env->log("%X start drive",this);
         co_await env->sleep(this,5);
-        std::cout << this << " 2\n";
         acceleration = 0;
+        env->log("%X reach highest speed",this);
         co_await env->sleep(this,10);
-        std::cout << this << " 3\n";
         acceleration = -1;
+        env->log("%X slowing down",this);
         co_await env->sleep(this,10);
-        std::cout << this << " 4\n";
+        env->log("%X keep same speed",this);
         acceleration = 0;
     }
     void stop(){}
     void tick(size_t step_){
         move();
-        // std::cout << env->now() << " x:"<<pos_x<<" y:"<<pos_y<<'\n';
+        env->log("%X at pos:%0.f",this,pos);
     }
 };
 
 class Collision:public sim::Object{
 public:
+    Car* cars[2];
     sim::Coro start(){co_await std::suspend_never{};};
     void stop(){};
     void tick(size_t step){
-        double last_x;
-        double last_y;
-        bool first = true;
-        bool get = false;
-        for(auto & i:env->obj_list()){
-            Car* each_car = (Car*)i;
-            if(first){
-                first = false;
-                last_x = each_car->pos_x;
-                last_y = each_car->pos_y;
-                continue;
-            }
-            if(std::abs(each_car->pos_x - last_x) <=10 && std::abs(each_car->pos_y - last_y) <=10){
-                std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
-                get = true;
-                break;
-            }else{
-                last_x = each_car->pos_x;
-                last_y = each_car->pos_y;
-            }
+        if(std::abs(cars[0]->pos - cars[1]->pos) <=20){
+            env->log("collided");
+            cars[0]->speed = 0;
+            cars[1]->speed = 0;
         }
-        for(auto & i :env->obj_list()){
-            Car* each_car = (Car*)i;
-            each_car->speed = 0;
-        }
-        
     }
 };
 
@@ -95,13 +68,16 @@ int main(){
     Car* car2= env.emplace_obj<Car>();
     Collision* coll = env.emplace_obj<Collision>();
 
-    car1->towards = 0.5 * M_PI;
-    car1->pos_x = 1;
-    car1->pos_y = 1;
 
-    car2->towards = 1.5 * M_PI;
-    car2->pos_x = 999;
-    car2->pos_y = 999;
+    coll->cars[0]=car1;
+    coll->cars[1]=car2;
 
-    env.run(50);
+    car1->pos = 0;
+    car1->forward = true;
+
+    car2->pos = 1000;
+    car2->forward = false;
+
+
+    env.run(80);
 }

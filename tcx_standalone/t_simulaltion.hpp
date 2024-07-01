@@ -8,6 +8,7 @@
 #include <queue>
 #include <coroutine>
 #include <map>
+#include <iostream>
 
 namespace tcx{
 namespace sim{
@@ -32,7 +33,12 @@ protected:
     // the coroutine of running start() function
     Coro* pco_=nullptr;
 public:
-    Env* env;
+    Env* env=nullptr;
+    Object()=default;
+    Object(Object const&)=delete;
+    Object(Object&&)=default;
+    Object& operator=(Object const&)=delete;
+    Object& operator=(Object&&)=default;
     virtual ~Object() = 0;
     virtual Coro start() = 0;
     virtual void stop() = 0;
@@ -65,13 +71,24 @@ private:
         STARTED = 1,
         STOPPING = 2,
     };
+    enum class LogLevel{
+        NORMAL = 0,
+        DEBUG = 1,
+        WARNING = 2,
+        USER_ERROR = 3,
+        ENV_ERROR = 4,
+        SYS_ERROR = 5,
+    };
     Status status_ = Status::STOPPED;
     size_t step_ = 0;
     std::unordered_set<Object*> objs_;
     std::map<size_t,std::unordered_set<Object*>> corotasks_;
     std::priority_queue<Event> event_queue_;
-
+    template<LogLevel level,typename ...Args> inline constexpr void __log(const char* fmt, Args&& ...args)const;
+    template<typename ...Args> inline constexpr void sys_err(const char* fmt, Args&& ...args) const;
+    template<typename ...Args> inline constexpr void env_err(const char* fmt, Args&& ...args) const;
 public:
+    Env();
     ~Env();
     // run the environment
     void run(size_t max_step = std::string::npos);
@@ -79,6 +96,11 @@ public:
     void stop();
     // get current step
     size_t now() const noexcept;
+    // logs
+    template<typename ...Args> inline constexpr void log(const char* fmt, Args&& ...args) const;
+    template<typename ...Args> inline constexpr void logd(const char* fmt, Args&& ...args) const;
+    template<typename ...Args> inline constexpr void warn(const char* fmt, Args&& ...args) const;
+    template<typename ...Args> inline constexpr void err(const char* fmt, Args&& ...args) const;
     // sleep for single item
     Sus sleep(Object* tar,size_t steps);
     // add asyn event
@@ -125,9 +147,6 @@ public:
 };
 
 
-
-
-
 // ----------------- impl -----------------------------
 
 // Event
@@ -155,6 +174,9 @@ void Event::trigger(){
 
 
 // Env
+Env::Env(){
+
+}
 Env::~Env(){
     for(auto& i:objs_){
         i->__release();
@@ -171,6 +193,9 @@ Sus Env::sleep(Object* tar,size_t steps){
         }else{
             corotasks_.emplace(steps+step_,std::unordered_set<Object*>{tar});
         }
+    }else{
+        warn("in function: %s if(steps == 0) will directly launch code below."
+            "Please modify your code for better performance.",__FUNCTION__);
     }
     return Sus{steps};
 }
@@ -180,6 +205,10 @@ std::unordered_set<Object*>& Env::obj_list(){
 void Env::run(size_t max_step){
     if(this->status_==Status::STOPPED){
         for(auto& i : objs_){
+            if(!i){
+                env_err("there is an nullptr in the objs_ of Env(addr.=%X)",this);
+                continue;
+            }
             i->__start();
         }
         status_ = Status::STARTED;
@@ -187,7 +216,10 @@ void Env::run(size_t max_step){
         while(status_ == Status::STARTED && (max_step == std::string::npos || step_<=max_step)){
             if(corotasks_.count(step_)){
                 for(Object* each: corotasks_[step_]){
-                    each->pco_->handle.resume();
+                    if(!each)env_err("there is an nullptr in the objs_ of Env(addr.=%X)",this);
+                    else if(!each->pco_)env_err("in Env(addr.=%X), the pco_ of Object(addr.=%X) is nullptr",this);
+                    else if(each->pco_->handle.done()) env_err("in Env(addr.=%X), the pco_ of Object(addr.=%X) has already done",this);
+                    else each->pco_->handle.resume();
                 }
                 corotasks_.erase(step_);
             }
@@ -211,21 +243,22 @@ void Env::run(size_t max_step){
             i->stop();
         }
         status_ = Status::STOPPED;
-    }else{
-        // connot run
+    }else{ // connot run
+        warn("the Env(addr.=%X) is already running",this);
     }
 }
 void Env::stop(){
     if(this->status_==Status::STARTED){
         this->status_ == Status::STOPPING;
     }
-    else {
-        // cannot stop
+    else { // cannot stop
+        warn("the Env(addr.=%X) has not started yet",this);
     }
 }
 template<typename _Fn,typename ... _Args>
 void Env::set_timeout(_Fn &&f,size_t _timeout, _Args &&...args){
     if(_timeout==0){
+        warn("in function: %s (_timeout == 0) will directly launch inputted function.",__FUNCTION__);
         f(args...);
         return;
     }
@@ -247,10 +280,68 @@ void Env::erase_obj(T* obj){
         this->objs_.erase(obj);
         obj->__release();
         delete obj;
+    }else{
+        warn("Attempted to erase an Object(addr.=%x typeid=%s) not belong to Env(addr.=%X)."
+            ,obj,typeid(T).name(),this);
     }
 }
-
-
+template<Env::LogLevel level,typename ...Args> 
+inline constexpr void Env::__log(const char* fmt, Args&& ...args)const{
+    if constexpr (level == LogLevel::NORMAL){
+        printf("LOG [%d] ",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n");
+    }else if constexpr(level == LogLevel::DEBUG){
+#if defined(_DEBUG) || defined(_DBG) ||defined(_debug) || defined(_dbg)
+        printf("DEBUG [%d] ",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n");
+#endif
+    }else if constexpr(level == LogLevel::WARNING){
+        printf("WAARNING [%d] ",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n");
+    }else if constexpr(level == LogLevel::USER_ERROR){
+        printf("USER_ERROR [%d] ",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n");
+    }else if constexpr(level == LogLevel::ENV_ERROR){
+        printf("ENV_ERROR [%d] ",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n!!! Please report this issue to https://github.com/cenxuantian."
+            " Thank you very much. !!!\n");
+    }else if constexpr(level == LogLevel::SYS_ERROR){
+        printf("SYS_ERROR [%d] ",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n>>> You can contact the author of this library "
+            "or visit https://github.com/cenxuantian for more details <<<\n");
+    }else{
+        printf("UNKNOWN [%d] PLEASE REPORT THIS TO "
+        "[https://github.com/cenxuantian] "
+        "BECAUSE THERE IS BUG IN THE [" __FILE__ "] \n"
+        "HERE IS YOUR ORIGINAL LOG:\n",step_);
+        printf(fmt, std::forward<Args>(args)...);
+        printf("\n");
+    }
+}
+template<typename ...Args> inline constexpr void Env::log(const char* fmt, Args&& ...args) const{
+    __log<LogLevel::NORMAL>(fmt,std::forward<Args&&>(args)...);
+}
+template<typename ...Args> inline constexpr void Env::logd(const char* fmt, Args&& ...args) const{
+    __log<LogLevel::DEBUG>(fmt,std::forward<Args&&>(args)...);
+}
+template<typename ...Args> inline constexpr void Env::warn(const char* fmt, Args&& ...args) const{
+    __log<LogLevel::WARNING>(fmt,std::forward<Args&&>(args)...);
+}
+template<typename ...Args> inline constexpr void Env::err(const char* fmt, Args&& ...args) const{
+    __log<LogLevel::USER_ERROR>(fmt,std::forward<Args&&>(args)...);
+}
+template<typename ...Args> inline constexpr void Env::sys_err(const char* fmt, Args&& ...args) const{
+    __log<LogLevel::SYS_ERROR>(fmt,std::forward<Args&&>(args)...);
+}
+template<typename ...Args> inline constexpr void Env::env_err(const char* fmt, Args&& ...args) const{
+    __log<LogLevel::ENV_ERROR>(fmt,std::forward<Args&&>(args)...);
+}
 // Object
 Object::~Object(){}
 void  Object::__start(){
@@ -260,6 +351,7 @@ void  Object::__start(){
 void Object::__resume(){
     if(this->pco_) this->pco_->resume();
     else {
+        env->env_err("Object(addr.=%x) do not has a pointer of coroutine.");
         return;
     }
 }
