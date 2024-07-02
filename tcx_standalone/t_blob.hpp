@@ -212,6 +212,14 @@ public:
     void reserve(__usize _capacity)noexcept{
         if(_capacity > capacity_){
             buf_ = (__byte*)realloc(buf_,_capacity);
+            capacity_ = _capacity;
+        }
+    }
+    void resize(__usize _size){
+        if(_size < size_) size_ = _size;
+        else{
+            if(start_+_size <=capacity_)size_ = _size;
+            else size_ = capacity_ - start_;
         }
     }
     BlobShadow leak()noexcept{BlobShadow res={buf_,capacity_,start_,size_};just_leak();return res;}

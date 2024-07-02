@@ -41,9 +41,9 @@ enum class HTTPContentType :int{
 
 struct HTTPRequest{
     HTTPReqType type = HTTPReqType::T_GET;
-    std::string route;
+    std::string route = "/";
     uint32_t version[2] = {1,1};
-    std::unordered_map<std::string,std::string> headers;
+    std::unordered_map<std::string,std::string> headers = {};
     Blob body;
 };
 

@@ -193,6 +193,29 @@ public:
         ::memcpy(&res.addr_in_,&addr_in,sizeof(sockaddr_in));
         return res;
     }
+    static IPAddr url(const char* hostname, u_short port){
+        global_socket_env.add();
+        IPAddr res;
+        unsigned long inaddr;
+        struct sockaddr_in ad;
+        struct hostent *hp;
+        memset(&ad, 0, sizeof(ad));
+        ad.sin_family = AF_INET;
+        inaddr = inet_addr(hostname);
+        if (inaddr != INADDR_NONE)
+            memcpy(&ad.sin_addr, &inaddr, sizeof(inaddr));
+        else
+        {
+            hp = gethostbyname(hostname);
+            if (hp == NULL)
+                return IPAddr{};
+            memcpy(&ad.sin_addr, hp->h_addr, hp->h_length);
+        }
+        ad.sin_port = htons(port);
+        memcpy(&res.addr_in_,&ad,sizeof(ad));
+        global_socket_env.remove();
+        return res;
+    }
     Type type()const noexcept{
         return type_;
     }
@@ -273,7 +296,9 @@ private:
             free(buf);
             return {};
         }
-        else return Blob::take_over(buf);
+        auto r = Blob::take_over(buf);
+        r.resize(ret);
+        return std::move(r);
     }
 
 
@@ -298,7 +323,9 @@ private:
         int this_time_write_size =std::min(left_size,write_buf_size);
 
         // wait
-        if(wait_forever) if(!await_writeable(_timeout).has_value()) return false;
+        if(wait_forever) {
+            if(!await_writeable(_timeout).has_value()) return false;
+        }
         else{
             auto past_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
             auto left_time = _timeout<=past_time?std::chrono::milliseconds(0):_timeout-past_time;
@@ -333,6 +360,7 @@ private:
 
         bool wait_forever = _timeout == std::chrono::milliseconds(0)? true:false;
         int read_buf_size = read_buf_size_res.value();
+        int total_read_size = 0;
         Blob blob;
         blob.reserve(_size);
         int left_size = _size;
@@ -341,11 +369,16 @@ private:
 
         try_read:
         // prepare
-        if(left_size<=0) return blob;// read finish
+        if(left_size<=0){
+            blob.resize(total_read_size);
+            return blob;// read finish
+        }
         int this_time_read_size = std::min(left_size,read_buf_size);
 
         // wait
-        if(wait_forever) if(!await_readable(_timeout).has_value()) return {};
+        if(wait_forever) {
+            if(!await_readable(_timeout).has_value()) return {};
+        }
         else{
             auto past_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
             auto left_time = _timeout<=past_time?std::chrono::milliseconds(0):_timeout-past_time;
@@ -361,6 +394,7 @@ private:
         int ret =  _fn(h_sock_,(char*)blob.buf(_size-left_size),this_time_read_size,0,std::forward<_Args>(args)...);
         if(ret == SOCKET_ERROR) return {};// error
         left_size-=ret;
+        total_read_size+=ret;
         goto try_read;
         return {};
     }
@@ -379,6 +413,10 @@ public:
         Socket res(_protocol);
         if(res.valid_) return {std::move(res)};
         else return {};
+    }
+
+    static Socket safe_create(Protocol _protocol){
+        return Socket(_protocol);
     }
     
     // create a socket in native style
@@ -709,7 +747,7 @@ public:
             _opt,
             (char*)&data,
             &len);
-        if(ret!=SOCKET_ERROR)return {};
+        if(ret==SOCKET_ERROR)return {};
         else return std::move(data);
     }
     
