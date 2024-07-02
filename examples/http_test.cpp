@@ -20,7 +20,7 @@ int main(){
     req.headers.emplace("connection","conn");
     auto res = client.send(req);
     if(res.has_value()){
-        std::cout << "got \n";
+        std::cout << res.value().body.data();
     }
     else{
         std::cout << GetLastError() << '\n';

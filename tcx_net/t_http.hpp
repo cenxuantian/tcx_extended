@@ -85,9 +85,26 @@ std::optional<HTTPResponse> HTTPClient::send(HTTPRequest const& req){
             return {};
         }
         tcx::Blob& resb = res_opt.value();
-        std::cout << (char*)resb.data() << '\n';
-        std::optional<HTTPResponse> res = HTTP_read_res(resb);
+        tcx::Blob temp = resb.clone();
+        std::optional<HTTPResponse> res = HTTP_read_res(temp);
         if(res.has_value()){
+            auto& value = res.value();
+            if(value.headers.count("Content-Length")){
+                int content_len = 0;
+                try{
+                    content_len = std::stoi(value.headers["Content-Length"]);
+                }catch(...){
+
+                }
+                if(content_len>resb.size()){
+                    int left_size = content_len-resb.size();
+                    std::optional<tcx::Blob> res_opt2 = sock_.readall(left_size,std::chrono::milliseconds(1000));
+                    if(res_opt2.has_value()){
+                        res.value().body << res_opt2.value();
+                        return res;
+                    }else return res;
+                }
+            }
             return res;
         }else{
             __rise_error<HTTPErrorType::RES_FORMAT_ERROR>();
