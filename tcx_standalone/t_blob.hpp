@@ -351,6 +351,31 @@ public:
         }
         return std::string::npos;
     }
+    
+    
+    // compare
+    bool operator==(Blob const& other) const noexcept{
+        if(size_!=other.size_)return false;
+        return memcmp(data(),other.data(),size_)==0;
+    }
+    bool operator==(std::string const& other) const noexcept{
+        if(size_!=other.size())return false;
+        return memcmp(data(),other.data(),size_)==0;
+    }
+    bool operator==(const char* other) const noexcept{
+        if(size_!=strlen(other))return false;
+        return memcmp(data(),other,size_)==0;
+    }
+    bool operator!=(std::string const& other)const noexcept{
+        return ! this->operator==(other);
+    }
+    bool operator!=(const char* other) const noexcept{
+        return ! this->operator==(other);
+    }
+    bool operator!=(Blob const& other) const noexcept{
+        return ! this->operator==(other);
+    }
+
     // static
     static Blob take_over(void* _buf)noexcept {auto sz=__t_blob_msize(_buf); return Blob((__byte*)_buf,sz,0,sz);}
 
