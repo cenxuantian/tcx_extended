@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <optional>
 #include "../tcx_standalone/t_blob.hpp"
+#include "t_sock_wrapper.hpp"
 
 namespace tcx{
 
@@ -149,39 +150,42 @@ inline std::string get_status_str(int status_code){
 
 }
 
-std::optional<HTTPRequest> HTTP_read_req(Blob & blob){
+std::optional<HTTPRequest> HTTP_read_req(Blob const& blob){
     HTTPRequest req;
+    size_t offset = 0;
+
     // remove useless ' '
-    size_t pos = blob.find_first_not_of(' ');
+    size_t pos = blob.find_first_not_of(' ',offset);
     if(pos == std::string::npos) return {};
-    blob.pop_front(pos);
+    offset+=pos;
 
     // get type
-    pos = blob.find_first_of(' ');
+    pos = blob.find_first_of(' ',offset);
     if(pos == std::string::npos) return {};
-    req.type = get_type(blob.data(),pos);
-    blob.pop_front(pos+1);
+    req.type = get_type(blob.data(offset),pos);
+    offset+=pos+1;
 
     // get route
-    pos = blob.find_first_of(' ');
+    pos = blob.find_first_of(' ',offset);
     if(pos == std::string::npos) return {};
-    req.route.assign((char*)blob.data(),pos);
-    blob.pop_front(pos+1);
+    req.route.assign((char*)blob.data(offset),pos);
+    offset+=pos+1;
 
     // get version
-    pos = blob.find_first_of('/');
+    pos = blob.find_first_of('/',offset);
     if(pos == std::string::npos) return {};
-    blob.pop_front(pos+1);
-    pos = blob.find_first_of("\r\n");
+    offset+=pos+1;
+    pos = blob.find_first_of("\r\n",offset);
     if(pos == std::string::npos) return {};
     std::string temp;
-    temp.assign((char*)blob.data(),pos);
+    temp.assign((char*)blob.data(offset),pos);
     double ver;
     try{ver = std::stod(temp);}
     catch(...) {return {};}
     req.version[0] =ver;
     req.version[1] =((double)ver-req.version[0])*10;
-    blob.pop_front(pos+2);
+    // blob.pop_front(pos+2);
+    offset+=pos+2;
 
     // get headers
     std::string temp_key;
@@ -189,35 +193,35 @@ std::optional<HTTPRequest> HTTP_read_req(Blob & blob){
     get_header:
     {
         // gete key
-        pos = blob.find_first_not_of(' ');
+        pos = blob.find_first_not_of(' ',offset);
         if(pos == std::string::npos) return req;
-        blob.pop_front(pos);  // remove useless space
-        pos = blob.find_first_of(':');
+        offset+=pos;  // remove useless space
+        pos = blob.find_first_of(':',offset);
         if(pos == std::string::npos) return req;
         temp_key.clear();
-        temp_key.assign((char*)blob.data(),pos);
-        blob.pop_front(pos+1);
+        temp_key.assign((char*)blob.data(offset),pos);
+        offset+=pos+1;
     }
     {
         // get val
-        pos = blob.find_first_not_of(' ');
+        pos = blob.find_first_not_of(' ',offset);
         if(pos == std::string::npos) return req;
-        blob.pop_front(pos);  // remove useless space
-        pos = blob.find_first_of("\r\n");
+        offset+=pos;  // remove useless space
+        pos = blob.find_first_of("\r\n",offset);
         if(pos == std::string::npos) return req;
         temp_val.clear();
-        temp_val.assign((char*)blob.data(),pos);
-        blob.pop_front(pos);// keep the \r
+        temp_val.assign((char*)blob.data(offset),pos);
+        offset+=pos;// keep the \r
     }
 
     req.headers.emplace(std::move(temp_key),std::move(temp_val));
     if(blob.size()>=4){
-        if(!buf_equal(blob.data(),4,"\r\n\r\n")){
-            blob.pop_front(2);
+        if(!buf_equal(blob.data(offset),4,"\r\n\r\n")){
+            offset+=2;
             goto get_header;
         }else{
-            blob.pop_front(4);
-            req.body = std::move(blob);
+            offset+=4;
+            req.body.assign(blob.data(offset),blob.size()-offset,0);
             return req;
         }
     }else{
@@ -225,41 +229,48 @@ std::optional<HTTPRequest> HTTP_read_req(Blob & blob){
     }
 }
 
-std::optional<HTTPResponse> HTTP_read_res(Blob & blob){
+std::optional<HTTPResponse> HTTP_read_res(Blob const& blob){
     HTTPResponse res;
+    size_t offset = 0;
+
     // remove useless ' '
-    size_t pos = blob.find_first_not_of(' ');
+    size_t pos = blob.find_first_not_of(' ',offset);
     if(pos == std::string::npos) return {};
-    blob.pop_front(pos);
+    offset+=pos;
+    // blob.pop_front(pos);
 
     // get version
-    pos = blob.find_first_of('/');
+    pos = blob.find_first_of('/',offset);
     if(pos == std::string::npos) return {};
-    blob.pop_front(pos+1);
-    pos = blob.find_first_of(' ');
+    offset+=pos+1;
+    // blob.pop_front(pos+1);
+    pos = blob.find_first_of(' ',offset);
     if(pos == std::string::npos) return {};
     std::string temp;
-    temp.assign((char*)blob.data(),pos);
+    temp.assign((char*)blob.data(offset),pos);
     double ver;
     try{ver = std::stod(temp);}
     catch(...) {return {};}
     res.version[0] =ver;
     res.version[1] =((double)ver-res.version[0])*10;
-    blob.pop_front(pos+1);
+    // blob.pop_front(pos+1);
+    offset+=pos+1;
 
 
     // get code 
-    pos = blob.find_first_of(' ');
+    pos = blob.find_first_of(' ',offset);
     if(pos == std::string::npos) return {};
     std::string code_str;
-    code_str.assign((char*)blob.data(),pos);
+    code_str.assign((char*)blob.data(offset),pos);
     try{res.status_code = std::stoi(code_str);}catch(...){return {};}
-    blob.pop_front(pos+1);
+    // blob.pop_front(pos+1);
+    offset+=pos+1;
 
     // get headers prepare
-    pos = blob.find_first_of("\r\n");
+    pos = blob.find_first_of("\r\n",offset);
     if(pos == std::string::npos) return {};
-    blob.pop_front(pos+2);
+    // blob.pop_front(pos+2);
+    offset+=pos+2;
 
     // get headers
     std::string temp_key;
@@ -267,35 +278,42 @@ std::optional<HTTPResponse> HTTP_read_res(Blob & blob){
     get_header:
     {
         // gete key
-        pos = blob.find_first_not_of(' ');
+        pos = blob.find_first_not_of(' ',offset);
         if(pos == std::string::npos) return res;
-        blob.pop_front(pos);  // remove useless space
-        pos = blob.find_first_of(':');
+        offset+=pos; // remove useless space
+        // blob.pop_front(pos);  // remove useless space
+        pos = blob.find_first_of(':',offset);
         if(pos == std::string::npos) return res;
         temp_key.clear();
-        temp_key.assign((char*)blob.data(),pos);
-        blob.pop_front(pos+1);
+        temp_key.assign((char*)blob.data(offset),pos);
+        // blob.pop_front(pos+1);
+        offset+=pos+1;
     }
     {
         // get val
-        pos = blob.find_first_not_of(' ');
+        pos = blob.find_first_not_of(' ',offset);
         if(pos == std::string::npos) return res;
-        blob.pop_front(pos);  // remove useless space
-        pos = blob.find_first_of("\r\n");
+        offset+=pos; // remove useless space
+        // blob.pop_front(pos);  // remove useless space
+        pos = blob.find_first_of("\r\n",offset);
         if(pos == std::string::npos) return res;
         temp_val.clear();
-        temp_val.assign((char*)blob.data(),pos);
-        blob.pop_front(pos);// keep the \r
+        temp_val.assign((char*)blob.data(offset),pos);
+        // blob.pop_front(pos);// keep the \r
+        offset+=pos;
     }
 
     res.headers.emplace(std::move(temp_key),std::move(temp_val));
     if(blob.size()>=4){
-        if(!buf_equal(blob.data(),4,"\r\n\r\n")){
-            blob.pop_front(2);
+        if(!buf_equal(blob.data(offset),4,"\r\n\r\n")){
+            // blob.pop_front(2);
+            offset+=2;
             goto get_header;
         }else{
-            blob.pop_front(4);
-            res.body = std::move(blob);
+            // blob.pop_front(4);
+            offset+=4;
+            res.body.assign(blob.data(offset),blob.size()-offset,0);
+            // res.body = std::move(blob);
             return res;
         }
     }else{
@@ -325,5 +343,8 @@ Blob HTTP_to_blob(HTTPResponse const& res){
     bin << "\r\n"<<res.body<<0;
     return bin;
 }
+
+
+
 
 }

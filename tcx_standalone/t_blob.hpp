@@ -314,37 +314,40 @@ public:
         }
     }
 
-    __usize find_first_of(unsigned char c){
-        for(__usize i = start_; i < start_+size_;i++){
-            if(this->buf_[i] == c)return i-start_;
+    // find the first of c, start from the pos _offset(contained)
+    // returns the c pos start from _offset if found
+    // else return npos
+    __usize find_first_of(unsigned char c,size_t _offset = 0)const{
+        for(__usize i = start_+_offset; i < start_+_offset+size_;i++){
+            if(this->buf_[i] == c)return i-start_-_offset;
         }
         return std::string::npos;
     }
-    __usize find_first_of(std::string const& c){
+    __usize find_first_of(std::string const& c,size_t _offset = 0)const{
         size_t sz = c.size();
         unsigned char* compare_buf = (unsigned char*)c.data();
-        for(__usize i = start_; i < start_+size_-sz+1;i++){
+        for(__usize i = start_+_offset; i < start_+_offset+size_-sz+1;i++){
             if(buf_[i] == compare_buf[0]){
-                if(memcmp(buf_+i,compare_buf,sz) == 0) return i-start_;
+                if(memcmp(buf_+i,compare_buf,sz) == 0) return i-start_-_offset;
             }
         }
         return std::string::npos;
     }
-    __usize find_last_of(unsigned char c){
-        for(__usize i = start_+size_-1; i >= start_;i--){
-            if(this->buf_[i] == c)return i-start_;
+    __usize find_last_of(unsigned char c,size_t _offset = 0)const{
+        for(__usize i = start_+_offset+size_-1; i >= start_+_offset;i--){
+            if(this->buf_[i] == c)return i-start_-_offset;
         }
         return std::string::npos;
     }
-    __usize find_first_not_of(unsigned char c){
-        for(__usize i = start_; i < start_+size_;i++){
-            if(this->buf_[i] != c)return i-start_;
+    __usize find_first_not_of(unsigned char c,size_t _offset = 0)const{
+        for(__usize i = start_+_offset; i < start_+_offset+size_;i++){
+            if(this->buf_[i] != c)return i-start_-_offset;
         }
         return std::string::npos;
     }
-    __usize find_last_not_of(unsigned char c){
-        for(__usize i = start_+size_-1; i >= start_;i--){
-            if(this->buf_[i] != c)return i-start_;
+    __usize find_last_not_of(unsigned char c,size_t _offset = 0)const{
+        for(__usize i = start_+_offset+size_-1; i >= start_+_offset;i--){
+            if(this->buf_[i] != c)return i-start_-_offset;
         }
         return std::string::npos;
     }

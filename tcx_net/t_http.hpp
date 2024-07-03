@@ -4,7 +4,7 @@
 #include <iostream>
 #include "t_http_tools.hpp"
 #include "t_sock_wrapper.hpp"
-
+#include "../tcx_standalone/t_math.hpp"
 
 namespace tcx{
 
@@ -75,35 +75,57 @@ std::optional<HTTPResponse> HTTPClient::send(HTTPRequest const& req){
         }
     }
     send:
-    auto b = HTTP_to_blob(req);
-
-    if(sock_.write_all(b,std::chrono::milliseconds(1000))){
+    if(sock_.write_all(HTTP_to_blob(req),std::chrono::milliseconds(1000))){
         // send ok, wait for respons
         std::optional<tcx::Blob> res_opt = sock_.readall(2048,std::chrono::milliseconds(1000));
         if(!res_opt.has_value()){
             __rise_error<HTTPErrorType::SERVER_NOT_RESPONSE>();
             return {};
         }
-        tcx::Blob& resb = res_opt.value();
-        tcx::Blob temp = resb.clone();
-        std::optional<HTTPResponse> res = HTTP_read_res(temp);
+        auto& b = res_opt.value();
+        std::cout << b.data() << "\n\n\n";
+        std::optional<HTTPResponse> res = HTTP_read_res(res_opt.value());
         if(res.has_value()){
             auto& value = res.value();
             if(value.headers.count("Content-Length")){
-                int content_len = 0;
+                int content_len = 0;    // got content length
                 try{
                     content_len = std::stoi(value.headers["Content-Length"]);
                 }catch(...){
-
+                    // content len error
+                    return res;
                 }
-                if(content_len>resb.size()){
-                    int left_size = content_len-resb.size();
+                if(content_len>value.body.size()){
+                    int left_size = content_len - value.body.size();
                     std::optional<tcx::Blob> res_opt2 = sock_.readall(left_size,std::chrono::milliseconds(1000));
                     if(res_opt2.has_value()){
                         res.value().body << res_opt2.value();
                         return res;
                     }else return res;
                 }
+            }
+            else{
+                // no content length
+                auto& body = res.value().body;
+                size_t pos = body.find_first_of("\r\n");
+                if(pos>=64)return res;// no lens indecator
+
+                std::string s_size;
+                s_size.assign((char*)body.data(),pos);
+                int content_len = hex2dec(s_size);
+                body.pop_back(pos+2);
+                int left_size = content_len-body.size();
+                std::optional<tcx::Blob> res_opt2 = sock_.readall(left_size,std::chrono::milliseconds(1000));
+                if(!res_opt2.has_value()) return res;
+                res.value().body << res_opt2.value();
+
+
+                std::optional<tcx::Blob> res_opt3 = sock_.readsome(2);
+                if(!res_opt3.has_value())return res; // no more
+                if(!(res_opt3.value()[0] == '\r' && res_opt3.value()[1] == '\n')) return res;
+                
+                return res;
+
             }
             return res;
         }else{

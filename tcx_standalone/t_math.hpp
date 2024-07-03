@@ -3,6 +3,7 @@
 #include <math.h>
 #include <memory>
 #include <utility>
+#include <unordered_map>
 
 namespace tcx{
 
@@ -48,5 +49,21 @@ public:
 
 };
 
+inline unsigned int hex2dec(char hex_char){
+    if(hex_char >='0' && hex_char<='9')return hex_char-'0';
+    else if(hex_char >='a' && hex_char <='f') return hex_char-'a'+10;
+    else if(hex_char >='A' && hex_char <='F') return hex_char-'A'+10;
+    else return -1;
+}
+
+unsigned int hex2dec(std::string const& hex_str){
+    unsigned int sz = hex_str.size();
+    const char* data = hex_str.data();
+    unsigned int sum = 0;
+    for(unsigned int i =0;i<sz;i++){
+        sum+= hex2dec(data[i]) * std::pow<unsigned int>(16,sz-1-i);
+    }
+    return sum;
+}
 
 }

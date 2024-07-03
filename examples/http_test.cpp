@@ -1,26 +1,23 @@
-
+#include <t_math.hpp>
 #include <t_http.hpp>
 // #include <t_meta.hpp>
 #include <iostream>
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>
-
- 
-#define BUFSIZE 1024
-#define PORT 80
-#define IPSTR "61.135.169.125"
-#define DOMAIN "www.baidu.com"
+#include <t_file.hpp>
 
 int main(){
-
-    tcx::HTTPClient client(tcx::IPAddr::url("www.baidu.com",80));
+    tcx::HTTPClient client(tcx::IPAddr::url("www.google.com",80));
     tcx::HTTPRequest req;
     req.type = tcx::HTTPReqType::T_GET;
     req.headers.emplace("connection","conn");
     auto res = client.send(req);
     if(res.has_value()){
         std::cout << res.value().body.data();
+        std::string path = tcx::Path::cwd().cd("..").cd("./test.html").str();
+        tcx::Blob& body = res.value().body;
+        tcx::overwrite(path,(char*)body.data(),body.size());
     }
     else{
         std::cout << GetLastError() << '\n';
