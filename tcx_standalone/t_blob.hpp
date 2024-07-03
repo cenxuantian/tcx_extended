@@ -184,6 +184,11 @@ public:
 
     // funcs
     __byte const* data(__usize _offset = 0)const noexcept {return buf_+_offset+start_;}
+    const char* c_str(__usize _offset = 0) const noexcept{
+        const_cast<Blob*>(this)->operator<<((char)0);
+        const_cast<Blob*>(this)->pop_back(1);
+        return (char*)buf_+_offset+start_;
+    }
     void* buf(__usize _offset = 0)noexcept{return (void*)(buf_+_offset+start_);}
     __byte const* original_data()const noexcept{return buf_;}
     void* original_buf()const noexcept{return (void*)buf_;}
@@ -209,17 +214,23 @@ public:
         size_ = 0;
         start_ = 0;
     }
+    // this functino only changes the capacity
     void reserve(__usize _capacity)noexcept{
         if(_capacity > capacity_){
             buf_ = (__byte*)realloc(buf_,_capacity);
             capacity_ = _capacity;
         }
     }
+    // this function will change the size, may result some uncertain byte be caontained
+    // will change the capacity if there is no enough space
     void resize(__usize _size){
         if(_size < size_) size_ = _size;
         else{
             if(start_+_size <=capacity_)size_ = _size;
-            else size_ = capacity_ - start_;
+            else {
+                reserve(start_+_size);
+                size_ = _size;
+            }
         }
     }
     BlobShadow leak()noexcept{BlobShadow res={buf_,capacity_,start_,size_};just_leak();return res;}
@@ -232,6 +243,13 @@ public:
     }
     void overlap(Blob const& _other,__usize offset = 0){
         overlap_data((void*)_other.data(),_other.size(),offset);
+    }
+    void overlap(Blob && _other,__usize offset = 0){
+        if(offset == 0 && size_ ==0){
+            this->operator=(std::move(_other));
+        }else{
+            overlap_data((void*)_other.data(),_other.size(),offset);
+        }
     }
     void overlap(std::string const& _str, __usize offset = 0){
         overlap_data((void*)_str.data(),_str.size(),offset);
@@ -254,6 +272,13 @@ public:
     }
     void insert(Blob const& _other,__usize offset = 0){
         insert_data((void*)_other.buf_,_other.size(),offset);
+    }
+    void insert(Blob && _other,__usize offset = 0){
+        if(offset == 0 && size_ ==0){
+            this->operator=(std::move(_other));
+        }else{
+            insert_data((void*)_other.buf_,_other.size(),offset);
+        }
     }
     template<typename T, __my_requires(std::is_pointer_v<T>)>
     void insert(T pointer,__usize offset = 0){

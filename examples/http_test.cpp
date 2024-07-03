@@ -14,9 +14,9 @@ int main(){
     req.headers.emplace("connection","conn");
     auto res = client.send(req);
     if(res.has_value()){
-        std::cout << res.value().body.data();
-        std::string path = tcx::Path::cwd().cd("..").cd("./test.html").str();
         tcx::Blob& body = res.value().body;
+        std::cout << body.c_str() << '\n';
+        std::string path = tcx::Path::cwd().cd("..").cd("./test.html").str();
         tcx::overwrite(path,(char*)body.data(),body.size());
     }
     else{
