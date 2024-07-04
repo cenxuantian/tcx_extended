@@ -81,8 +81,8 @@ You must overwrite 3 member functions -- `start()`, `stop()` and `tick(size_t st
 ```C++
 class YourClass:public sim::Object{
 public:
-    sim::Coro start(){};
-    void stop(){};
+    sim::Coro start(){}
+    void stop(){}
     void tick(size_t step){}
 };
 ```
