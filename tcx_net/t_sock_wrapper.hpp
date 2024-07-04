@@ -58,6 +58,7 @@ SOFTWARE.
 
 
 #include "../tcx_standalone/t_blob.hpp"
+#include "../tcx_standalone/t_url.hpp"
 #include <utility>
 #include <tuple>
 #include <chrono>
@@ -193,7 +194,7 @@ public:
         ::memcpy(&res.addr_in_,&addr_in,sizeof(sockaddr_in));
         return res;
     }
-    static IPAddr url(const char* hostname, u_short port){
+    static IPAddr url(Url const& url){
         global_socket_env.add();
         IPAddr res;
         unsigned long inaddr;
@@ -201,20 +202,25 @@ public:
         struct hostent *hp;
         memset(&ad, 0, sizeof(ad));
         ad.sin_family = AF_INET;
-        inaddr = inet_addr(hostname);
+        inaddr = inet_addr(url.host.c_str());
         if (inaddr != INADDR_NONE)
             memcpy(&ad.sin_addr, &inaddr, sizeof(inaddr));
         else
         {
-            hp = gethostbyname(hostname);
+            hp = gethostbyname(url.host.c_str());
             if (hp == NULL)
                 return IPAddr{};
             memcpy(&ad.sin_addr, hp->h_addr, hp->h_length);
         }
-        ad.sin_port = htons(port);
+        ad.sin_port = htons(url.port);
         memcpy(&res.addr_in_,&ad,sizeof(ad));
         global_socket_env.remove();
         return res;
+    }
+    static IPAddr url(const char* _url){
+        std::optional<Url> urlopt = UrlParse(_url);
+        if(!urlopt.has_value()) return IPAddr{};
+        return url(urlopt.value());
     }
     Type type()const noexcept{
         return type_;
@@ -470,6 +476,7 @@ public:
 
 // ---- create ---- 
     ~Socket(){
+        this->close();
         global_socket_env.remove();
     }
 

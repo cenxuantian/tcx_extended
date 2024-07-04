@@ -6,9 +6,10 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <t_file.hpp>
+#include <t_url.hpp>
 
-int main(){
-    tcx::HTTPClient client(tcx::IPAddr::url("www.google.com",80));
+int main(){    
+    tcx::HTTPClient client(tcx::IPAddr::url("www.google.com"));
     tcx::HTTPRequest req;
     req.type = tcx::HTTPReqType::T_GET;
     req.headers.emplace("connection","conn");
