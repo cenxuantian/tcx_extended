@@ -13,6 +13,8 @@ struct Url{
     std::string host;
     uint16_t port;
     std::string route;
+    Url();
+    Url(const char* str);
 };
 
 std::optional<Url> UrlParse(const char* str);
@@ -48,6 +50,15 @@ int find_first_of(const char* tar, const char* str,int sz, int start_pos = 0){
 
 }
 
+Url::Url(){
+
+}
+Url::Url(const char* str){
+    std::optional<Url> urlopt = UrlParse(str);
+    if(urlopt.has_value()){
+        *this = std::move(urlopt.value());
+    }
+}
 
 std::optional<Url> UrlParse(const char* str){
     int start_pos = 0;

@@ -217,11 +217,6 @@ public:
         global_socket_env.remove();
         return res;
     }
-    static IPAddr url(const char* _url){
-        std::optional<Url> urlopt = UrlParse(_url);
-        if(!urlopt.has_value()) return IPAddr{};
-        return url(urlopt.value());
-    }
     Type type()const noexcept{
         return type_;
     }

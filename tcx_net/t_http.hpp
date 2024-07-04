@@ -9,6 +9,10 @@
 
 namespace tcx{
 
+
+// interface
+
+
 enum class HTTPErrorType{
     CONNECT_TIMEOUT = 0,
     SERVER_NOT_RESPONSE = 1,
@@ -43,20 +47,40 @@ public:
     void close();
 };
 
+
+std::pair<HTTPClient,std::optional<HTTPResponse>> HTTP_GET(Url const& url,std::unordered_map<std::string,std::string> && addtional_headers = {});
+std::pair<HTTPClient,std::optional<HTTPResponse>> HTTP_POST(Url const& url, Blob && msg,std::unordered_map<std::string,std::string> && addtional_headers = {});
 std::optional<HTTPResponse> HTTP_read_res_from_sock(Socket & sock_);
-std::pair<HTTPClient,std::optional<HTTPResponse>> HTTP_GET(const char* url);
-std::pair<HTTPClient,std::optional<HTTPResponse>> HTTP_POST(const char* url, Blob const& msg);
-
-
-
-
 
 
 
 
 
 // impl
+
 // global functions
+std::pair<HTTPClient,std::optional<HTTPResponse>> HTTP_GET(Url const& url,std::unordered_map<std::string,std::string> && addtional_headers){
+    HTTPClient client(tcx::IPAddr::url(url));
+    tcx::HTTPRequest req;
+    req.type = tcx::HTTPReqType::T_GET;
+    req.headers = std::move(addtional_headers);
+    req.route = url.route;
+    return {client,client.send(req)};
+}
+
+std::pair<HTTPClient,std::optional<HTTPResponse>> HTTP_POST(Url const& url, Blob && msg,std::unordered_map<std::string,std::string> && addtional_headers){
+    HTTPClient client(tcx::IPAddr::url(url));
+    tcx::HTTPRequest req;
+    req.type = tcx::HTTPReqType::T_POST;
+    req.headers = std::move(addtional_headers);
+    if(!req.headers.count("Content-Length")){
+        req.headers.emplace("Content-Length",std::to_string(msg.size()));
+    }
+    req.route = url.route;
+    req.body = std::move(msg);
+    return {client,client.send(req)};
+}
+
 std::optional<HTTPResponse> HTTP_read_res_from_sock(Socket & sock_){
     // read
     std::optional<tcx::Blob> opt_blob = sock_.readuntill("\r\n\r\n");
