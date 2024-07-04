@@ -53,6 +53,27 @@ t_websocket_tools.hpp
 > *data visualization tools like SVG*
 ### t_simulaltion.hpp
 > *simulation framework*  
+> *you can simply use these APIs to create your simulation system*  
 
-[See examples](./tcx_standalone/t_simulaltion.hpp)
+
+``` C++
+// Create the Env instance
+sim::Env env;
+```
+
+``` C++
+// add sth. into the env
+Car* car1= env.emplace_obj<Car>();
+Car* car2= env.emplace_obj<Car>();
+Collision* coll = env.emplace_obj<Collision>();
+```
+
+``` C++
+// finally, run your env
+env.run();
+```
+
+
+- [Interfaces](./tcx_standalone/t_simulaltion.hpp)  
+- [Examples](./examples/sim_test.cpp)
 
