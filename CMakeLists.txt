@@ -20,6 +20,10 @@ target_link_libraries(t_http_test ws2_32)
 add_executable(http_client_test examples/http_client_test.cpp)
 target_link_libraries(http_client_test ws2_32)
 
+# http server test
+add_executable(http_server_test examples/http_server_test.cpp)
+target_link_libraries(http_server_test ws2_32)
+
 # socket wrapper functions test
 add_executable(t_sock_test examples/socket_test.cpp)
 target_link_libraries(t_sock_test ws2_32)

@@ -228,6 +228,8 @@ public:
     }
 };
 
+constexpr std::hash<SOCKET> __SOCKETHash;
+
 class Socket{
 public:
     enum class Protocol: int;
@@ -250,7 +252,7 @@ private:
     Protocol protocol_;
     IPAddr addr_;
 
-    Socket()noexcept {global_socket_env.add();}//hide
+    Socket()noexcept {global_socket_env.add();}
     Socket(Protocol _protocol):protocol_(_protocol) {//hide
         global_socket_env.add();
         switch (_protocol)
@@ -467,11 +469,48 @@ private:
         return {};
     }
 
+    void __reset()noexcept{
+        valid_=false;
+        h_sock_ = INVALID_SOCKET;
+        protocol_ = Protocol::P_OTHER;
+    }
+
 public:
 
 // ---- create ---- 
+    
+    Socket(Socket&& other) noexcept
+        :valid_(other.valid_)
+        ,h_sock_(other.h_sock_)
+        ,protocol_(other.protocol_)
+        ,addr_(std::move(other.addr_))
+    {
+        other.__reset();
+        global_socket_env.add();
+    }
+    
+    Socket& operator=(Socket&& other) noexcept{
+        if(this->h_sock_ != INVALID_SOCKET){
+            this->close();
+        }
+        this->valid_ = other.valid_;
+        this->h_sock_ = other.h_sock_;
+        this->protocol_ = other.protocol_;
+        this->addr_ = std::move(other.addr_);
+
+        other.__reset();
+        
+        return *this;
+    };
+
+    // non copyable
+    Socket(Socket const& other)=delete;
+    Socket& operator=(Socket const&)=default;
+    
     ~Socket(){
-        this->close();
+        if(this->h_sock_ != INVALID_SOCKET){
+            this->close();
+        }
         global_socket_env.remove();
     }
 
@@ -493,6 +532,12 @@ public:
         else return {};
     }
 
+    static Socket create_by_handle(SOCKET handle){
+        Socket res;
+        res.valid_ = handle!=INVALID_SOCKET;
+        res.protocol_ = Protocol::P_OTHER;
+        return res;
+    }
 
 // ---- error ----
     // check if the socket is valid currently
@@ -532,7 +577,6 @@ public:
     // get the protocol
     Protocol protocol()const noexcept{return this->protocol_;}
 
-
 // ---- operation ----
     // socet connect function
     // only valid for tcp
@@ -570,13 +614,16 @@ public:
         if(res.h_sock_ != INVALID_SOCKET){
             res.valid_ = true;
         }
+
         memcpy(&(res.addr_.addr_in_),&addr,sizeof(sockaddr_in));
         if(res.addr_.addr_in_.sin_family == AF_INET){
             res.addr_.type_ = IPAddr::Type::V4;
         }else if(res.addr_.addr_in_.sin_family == AF_INET6){
             res.addr_.type_ = IPAddr::Type::V6;
         }
-        return res.valid_? std::optional<Socket>{res}:std::optional<Socket>{};
+        if(res.valid_){
+            return res;
+        } else return {};
     }
     // socet sut down function
     bool shutdown(ShutdownType type = ShutdownType::SDT_BOTH){return ::shutdown(h_sock_,(int)type)!=SOCKET_ERROR;}
@@ -924,6 +971,25 @@ public:
         if(!res.has_value())return {};
         else return {(bool)res.value()};
     }
+
+    // other
+    bool operator==(Socket const& other)const noexcept{
+        return this->h_sock_ == other.h_sock_;
+    }
+    bool operator!=(Socket const& other) const noexcept{
+        return this->h_sock_!=other.h_sock_;
+    }
+
+    // static auto hash(Socket const& sock){
+    //     return SOCKETHash(sock.h_sock_);
+    // }
+
+    // hash
+    struct Hash{
+        inline size_t operator()(Socket const& sock)const noexcept{
+            return std::hash<decltype(sock.h_sock_)>{}(sock.h_sock_);
+        }
+    };
 
 };
 
