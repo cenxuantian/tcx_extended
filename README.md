@@ -1,33 +1,33 @@
 # tcx_extended
 Extension for standard library
 ### menu
-├─examples                          # examples
-│      http_client_test.cpp
-│      http_test.cpp
-│      sim_test.cpp
-│      socket_test.cpp
-│      svg_test.cpp
-│
-├─tcx_net                           # computer networking wrapper classes and tools
-│      t_http.hpp
-│      t_http_tools.hpp
-│      t_sock_wrapper.hpp
-│      t_websocket_tools.hpp
-│
-├─tcx_pic                           # (unfinished)
-└─tcx_standalone                    # functions and classes can be standalone
-        t_blob.hpp
-        t_file.hpp
-        t_interval_map.hpp
-        t_math.hpp
-        t_meta.hpp
-        t_process.hpp
-        t_random.hpp
-        t_shared.hpp
-        t_simulaltion.hpp
-        t_trie.hpp
-        t_url.hpp
-        t_visual.hpp
+> ├─examples                          # examples
+> │      http_client_test.cpp
+> │      http_test.cpp
+> │      sim_test.cpp
+> │      socket_test.cpp
+> │      svg_test.cpp
+> │
+> ├─tcx_net                           # computer networking wrapper classes and tools
+> │      t_http.hpp
+> │      t_http_tools.hpp
+> │      t_sock_wrapper.hpp
+> │      t_websocket_tools.hpp
+> │
+> ├─tcx_pic                           # (unfinished)
+> └─tcx_standalone                    # functions and classes can be standalone
+>         t_blob.hpp
+>         t_file.hpp
+>         t_interval_map.hpp
+>         t_math.hpp
+>         t_meta.hpp
+>         t_process.hpp
+>         t_random.hpp
+>         t_shared.hpp
+>         t_simulaltion.hpp
+>         t_trie.hpp
+>         t_url.hpp
+>         t_visual.hpp
 
 
 ### t_blob.hpp
