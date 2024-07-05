@@ -165,7 +165,7 @@ std::optional<HTTPResponse> HTTP_read_res_from_sock(Socket & sock_){
     if(!opt_res.has_value())return {};
     HTTPResponse& res = opt_res.value();
 
-    if(!sock_.readable()) return opt_res;// just head
+    if(!sock_.readable().value_or(false)) return opt_res;// just head
 
     // read body
     if(res.headers.count("Content-Length")){
@@ -201,14 +201,14 @@ std::optional<HTTPResponse> HTTP_read_res_from_sock(Socket & sock_){
 }
 std::optional<HTTPRequest> HTTP_read_req_from_sock(Socket & sock_){
     // read
-    std::optional<tcx::Blob> opt_blob = sock_.readuntill("\r\n\r\n");
+    std::optional<tcx::Blob> opt_blob = sock_.readuntill("\r\n\r\n",std::chrono::milliseconds(1000));
     if(!opt_blob.has_value())return {};// read error
     std::optional<HTTPRequest> opt_req = HTTP_read_req(opt_blob.value());
 
     if(!opt_req.has_value())return {};
     HTTPRequest& req = opt_req.value();
 
-    if(!sock_.readable()) return opt_req;// just head
+    if(!sock_.readable().value_or(false)) return opt_req;// just head
 
     // read body
     if(req.headers.count("Content-Length")){
@@ -222,7 +222,7 @@ std::optional<HTTPRequest> HTTP_read_req_from_sock(Socket & sock_){
         }else return opt_req;// read error
     }else{
         read_body:
-        std::optional<tcx::Blob> res_opt2 = sock_.readuntill("\r\n");
+        std::optional<tcx::Blob> res_opt2 = sock_.readuntill("\r\n",std::chrono::milliseconds(1000));
         if(!res_opt2.has_value()) return opt_req;// read error
         auto pos = res_opt2.value().find_first_of('\r');
         if(pos == std::string::npos)return opt_req;// content error
@@ -234,7 +234,7 @@ std::optional<HTTPRequest> HTTP_read_req_from_sock(Socket & sock_){
             req.body << std::move(res_opt2.value());
             if(!sock_.readable()) return opt_req;// read finish
             else{
-                res_opt2 = sock_.readuntill("\r\n");
+                res_opt2 = sock_.readuntill("\r\n",std::chrono::milliseconds(1000));
                 if(!res_opt2.has_value()) return opt_req;// read error
                 goto read_body;
             }
@@ -324,38 +324,86 @@ bool HTTPServer::listen(){
                 __rise_error<HTTPErrorType::SERVER_ACCEPT_ERR>();
                 continue;
             }
+            std::cout << "new client connected\n";
+            
             connections_.emplace(std::move(client_opt.value()),ConnType::HTTP_LONG);
         }
-
+        // std::cout << "connections : "<< connections_.size()<<'\n';
         for(auto i = connections_.begin();i!=connections_.end();){
             Socket& client = const_cast<Socket&>(i->first);
+            auto select_res = client.select();
+            if(!select_res.has_value()){
+                std::cout << "select returns socket_err: "<< Socket::fast_err() << '\n';
+            }
+            else{
+                auto val = select_res.value();
+                bool _error = std::get<0>(val);
+                bool _recv = std::get<1>(val);
+                bool _send = std::get<2>(val);
+                // std::cout << client.native_handle() 
+                //     << " e,r,s: "<<std::get<0>(val)
+                //     << ','<<std::get<1>(val)
+                //     << ','<<std::get<2>(val)
+                //     <<'\n';
+
+                if(_error){
+                    auto error_opt = client.exact_err();
+                    if(!error_opt) goto erese_current_client;
+                    int error_code = error_opt.value();
+                    std::cout << "error from select: "<< error_code<<'\n';
+                }
+                if(_recv){
+                    std::optional<Blob> read_opt = client.read_while_readable();
+                    if(read_opt){
+                        if(read_opt.value().size()){
+                            std::cout << '[' <<read_opt.value().c_str() <<']'<<'\n';
+                        }
+                        
+                    }else{
+                        std::cout << "read error\n";
+                    }
+                }
+            }
+
+            goto next_client;// not readable
+
 
             if(i->second == ConnType::HTTP_LONG){
-                if(!client.readable().value_or(false)){
+                auto readable_opt = client.readable();
+                if(!readable_opt.has_value()){
                     if(client.has_error().value_or(true)){
-                        std::cout << "error: "<<client.exact_err().value_or(-1)<<'\n';
+                        client.close();
+                        goto erese_current_client;
                     }
-                    goto next_client;
+                }else{
+                    if(!readable_opt.value())goto next_client;// not readable
                 }
+
                 std::optional<HTTPRequest> reqopt = HTTP_read_req_from_sock(client);
                 if(!reqopt.has_value()) {
                     __rise_error<HTTPErrorType::RECV_ERROR>();
                     goto next_client;
                 }
+                
 
                 HTTPRequest& req = reqopt.value();
                 HTTPResponse res;
                 std::string& route = req.route;
                 std::smatch sm;
+                bool processed = false;
+
+                std::cout << "recv request :"<< HTTP_to_blob(req).c_str();
 
                 // route
                 if(routes_.count(route)){
                     routes_[route](req,res);
+                    processed = true;
                     goto finish_callback;
                 }
 
                 // static
                 if(statics_.count(route)){
+                    processed = true;
                     goto finish_callback;
                 }
 
@@ -363,6 +411,7 @@ bool HTTPServer::listen(){
                 for(auto&j:matches_){
                     if(std::regex_match(route,sm,std::regex(j.first))){
                         j.second(req,res,sm);
+                        processed = true;
                         goto finish_callback;
                     }
                 }
@@ -370,18 +419,27 @@ bool HTTPServer::listen(){
 
                 finish_callback:
                 // send res
-                if(!client.write_all(HTTP_to_blob(req),std::chrono::milliseconds(3000))){
+                if(!processed){
+                    res.headers.emplace("Content-Type","text");
+                    res.headers.emplace("Connection","close");
+                    res.headers.emplace("Cache-Control","no-cache");
+                }
+                tcx::Blob out_msg = HTTP_to_blob(res);
+                if(!client.write_all(out_msg,std::chrono::milliseconds(3000))){
                     __rise_error<HTTPErrorType::CONNECT_TIMEOUT>();
+                }else{
+                    std::cout << "write "<<out_msg.c_str()<< " finished\n";
                 }
 
                 // keep or close
-                if(req.headers.count("Connction")){
-                    if(req.headers["Connection"] == "close"){
+                if(req.headers.count("Connection")){
+                    if(req.headers["Connection"] != "keep-alive"){
                         client.close();
                         goto erese_current_client;
                     }
                 }
             }
+
             else if(i->second == ConnType::WEBSOCKET){
 
             }
@@ -393,6 +451,7 @@ bool HTTPServer::listen(){
             }
             erese_current_client:
             {
+                std::cout <<"Connection erased\n";
                 i = connections_.erase(i);
                 continue;
             }

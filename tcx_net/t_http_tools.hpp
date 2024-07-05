@@ -49,9 +49,9 @@ struct HTTPRequest{
 };
 
 struct HTTPResponse{
-    uint32_t version[2];
-    int status_code;
-    std::unordered_map<std::string,std::string> headers;
+    uint32_t version[2]= {1,1};
+    int status_code =404;
+    std::unordered_map<std::string,std::string> headers={};
     Blob body;
 };
 

@@ -66,6 +66,7 @@ SOFTWARE.
 #include <string>
 #include <optional>
 #include <tuple>
+#include <iostream>
 
 namespace tcx
 {
@@ -469,11 +470,45 @@ private:
         return {};
     }
 
+    template<typename _Fn,typename ..._Args>
+    std::optional<Blob> __read_while_readable(_Fn &&_fn, _Args &&...args){
+        auto read_buf_size_res = get_read_bufsize();
+        if(!read_buf_size_res.has_value()) return {};// no buf size
+        int read_buf_size = read_buf_size_res.value();
+        Blob blob;
+        blob.resize(read_buf_size);
+        int offset = 0;
+        if(!this->readable().value_or(false)) return blob;
+
+        try_read:
+        int ret = _fn(h_sock_,(char*)blob.data(offset),read_buf_size,0,std::forward<_Args>(args)...);
+        if(ret == SOCKET_ERROR) return {};// error
+        if(ret == read_buf_size){
+            if(this->readable().value_or(false)){
+                blob.resize(blob.size()+ret);
+                offset+=read_buf_size;
+                goto try_read;
+            }
+            else{
+                return blob;
+            }
+
+        }else{
+            if(this->readable().value_or(false)){
+            std::cout << "ret == 0, still readable\n";
+            }
+            blob.pop_back(read_buf_size - ret);
+            return blob;
+        }
+    }
+
     void __reset()noexcept{
         valid_=false;
         h_sock_ = INVALID_SOCKET;
         protocol_ = Protocol::P_OTHER;
     }
+
+
 
 public:
 
@@ -671,6 +706,10 @@ public:
         b<< target;
         return __readuntil(_timeout,b,::recv);
     }
+    std::optional<Blob> read_while_readable(){
+        return __read_while_readable(::recv);
+    }
+    
     // socet recvfrom function
     // param 0 size to read
     // param 1 target of udp
@@ -699,11 +738,19 @@ public:
 #endif
         return __readuntil(_timeout,target,::recvfrom,(sockaddr*)&taraddr.addr_in_,&addr_len);
     }
+    std::optional<Blob> read_while_raedable_from(IPAddr const& taraddr){
+#ifdef __linux__
+        socklen_t addr_len = sizeof(sockaddr_in);
+#elif defined(_WIN32)
+        int addr_len = sizeof(sockaddr_in);
+#endif
+        return __read_while_readable(::recvfrom,(sockaddr*)&taraddr.addr_in_,&addr_len);
+    }
     // socket select function
     // return 0 error
     // return 1 recv
     // return 2 send
-    std::optional<std::tuple<bool,bool,bool>> select(std::chrono::milliseconds const& _timeout){
+    std::optional<std::tuple<bool,bool,bool>> select(std::chrono::milliseconds const& _timeout = std::chrono::milliseconds(0)){
         std::tuple<bool,bool,bool> res = {false,false,false};
         auto _ms = _timeout.count();
         timeval _tval;
