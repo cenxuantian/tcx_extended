@@ -34,4 +34,3 @@ add_executable(sim_test examples/sim_test.cpp)
 
 # load cuda dll test
 add_executable(load_dll_test examples/load_dll_test.cpp)
-target_link_libraries(load_dll_test "D:/User/Desktop/git_proj/nvcc_test/x64/Release/t_pic_processor.dll")
