@@ -370,14 +370,6 @@ build CMakeFiles\cuda_pic_test.dir\tcx_pic\cu_src\t_picture.cu.obj: CUDA_COMPILE
   TARGET_COMPILE_PDB = CMakeFiles\cuda_pic_test.dir\
   TARGET_PDB = cuda_pic_test.pdb
 
-build CMakeFiles\cuda_pic_test.dir\tcx_pic\common\t_picture_common.cpp.obj: CXX_COMPILER__cuda_pic_test_unscanned_Debug D$:\User\Desktop\git_proj\tcx_extended\tcx_pic\common\t_picture_common.cpp || cmake_object_order_depends_target_cuda_pic_test
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++20
-  INCLUDES = -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include" -ID:\User\Desktop\git_proj\tcx_extended\tcx_standalone -ID:\User\Desktop\git_proj\tcx_extended\tcx_net -ID:\User\Desktop\git_proj\tcx_extended\tcx_pic\include
-  OBJECT_DIR = CMakeFiles\cuda_pic_test.dir
-  OBJECT_FILE_DIR = CMakeFiles\cuda_pic_test.dir\tcx_pic\common
-  TARGET_COMPILE_PDB = CMakeFiles\cuda_pic_test.dir\
-  TARGET_PDB = cuda_pic_test.pdb
-
 
 # =============================================================================
 # Device Link build statements for EXECUTABLE target cuda_pic_test
@@ -386,7 +378,7 @@ build CMakeFiles\cuda_pic_test.dir\tcx_pic\common\t_picture_common.cpp.obj: CXX_
 #############################################
 # Link the executable CMakeFiles\cuda_pic_test.dir\cmake_device_link.obj
 
-build CMakeFiles\cuda_pic_test.dir\cmake_device_link.obj: CXX_EXECUTABLE_DEVICE_LINKER__cuda_pic_test_Debug CMakeFiles\cuda_pic_test.dir\examples\cuda_pic_test.cpp.obj CMakeFiles\cuda_pic_test.dir\tcx_pic\cu_src\t_picture.cu.obj CMakeFiles\cuda_pic_test.dir\tcx_pic\common\t_picture_common.cpp.obj
+build CMakeFiles\cuda_pic_test.dir\cmake_device_link.obj: CXX_EXECUTABLE_DEVICE_LINKER__cuda_pic_test_Debug CMakeFiles\cuda_pic_test.dir\examples\cuda_pic_test.cpp.obj CMakeFiles\cuda_pic_test.dir\tcx_pic\cu_src\t_picture.cu.obj
   LANGUAGE_COMPILE_FLAGS = -D_WINDOWS -Xcompiler="/W3 /GR /EHsc" -Xcompiler="-MDd  -Zi -Ob0 -Od /RTC1"
   LINK_LIBRARIES = cudadevrt.lib cudart_static.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib
   LINK_PATH = -LIBPATH:C:\PROGRA~1\NVIDIA~2\CUDA\v12.5\include\..\lib\x64  -LIBPATH:C:\PROGRA~1\NVIDIA~2\CUDA\v12.5\lib\x64
@@ -403,7 +395,7 @@ build CMakeFiles\cuda_pic_test.dir\cmake_device_link.obj: CXX_EXECUTABLE_DEVICE_
 #############################################
 # Link the executable cuda_pic_test.exe
 
-build cuda_pic_test.exe: CXX_EXECUTABLE_LINKER__cuda_pic_test_Debug CMakeFiles\cuda_pic_test.dir\examples\cuda_pic_test.cpp.obj CMakeFiles\cuda_pic_test.dir\tcx_pic\cu_src\t_picture.cu.obj CMakeFiles\cuda_pic_test.dir\tcx_pic\common\t_picture_common.cpp.obj CMakeFiles\cuda_pic_test.dir\cmake_device_link.obj
+build cuda_pic_test.exe: CXX_EXECUTABLE_LINKER__cuda_pic_test_Debug CMakeFiles\cuda_pic_test.dir\examples\cuda_pic_test.cpp.obj CMakeFiles\cuda_pic_test.dir\tcx_pic\cu_src\t_picture.cu.obj CMakeFiles\cuda_pic_test.dir\cmake_device_link.obj
   FLAGS = /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1
   LINK_FLAGS = /machine:x64 /debug /INCREMENTAL /subsystem:console
   LINK_LIBRARIES = cudadevrt.lib  cudart_static.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib

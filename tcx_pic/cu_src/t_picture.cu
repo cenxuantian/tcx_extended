@@ -71,6 +71,7 @@ void t_pic_release(t_pics* pics){
 }
 
 int t_pic_to_gray(t_pics* pics){
+
     switch(pics->color_space){
         case t_pic_rgb:{
             g_t_pic_rgb_to_gray<<<1,pics->count>>>(pics);
