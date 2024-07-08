@@ -1,11 +1,11 @@
-#include "tcx_standalone/t_blob.hpp"
-#include "tcx_standalone/t_interval_map.hpp"
-#include "tcx_standalone/t_random.hpp"
-#include "tcx_standalone/t_shared.hpp"
-#include "tcx_standalone/t_trie.hpp"
-#include "tcx_standalone/t_file.hpp"
-#include "tcx_standalone/t_math.hpp"
-#include "tcx_standalone/t_visual.hpp"
+#include "./tcx_standalone/t_blob.hpp"
+#include "./tcx_standalone/t_interval_map.hpp"
+#include "./tcx_standalone/t_random.hpp"
+#include "./tcx_standalone/t_shared.hpp"
+#include "./tcx_standalone/t_trie.hpp"
+#include "./tcx_standalone/t_file.hpp"
+#include "./tcx_standalone/t_math.hpp"
+#include "./tcx_standalone/t_visual.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -27,7 +27,8 @@ void create_circle(std::vector<double>& points_circle1,std::vector<double>& poin
 }
 
 int main(){
-
+    tcx::Trie_26<false> trie;
+    auto a = trie.sub_trie("a");
     
 
     std::vector<double> points_circle1;

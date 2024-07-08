@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdlib.h>
 #include  <io.h>
 #include <stdlib.h>
 #include <fstream>
@@ -11,6 +12,9 @@
 #include <vector>
 #include <memory>
 #include <windows.h>
+#ifdef _MSC_VER
+#include <direct.h>
+#endif
 
 namespace tcx
 {
@@ -68,9 +72,13 @@ private:
 
     inline static size_t find_first_delimiter(std::string const& _path_str)noexcept{
 #ifdef _WIN32
-    return std::min(_path_str.find_first_of('/'),_path_str.find_first_of('\\'));
+#ifdef _MSC_VER
+        return min(_path_str.find_first_of('/'), _path_str.find_first_of('\\'));
 #else
-    return _path_str.find_first_of('/');
+        return std::min(_path_str.find_first_of('/'), _path_str.find_first_of('\\'));
+#endif
+#else
+        return _path_str.find_first_of('/');
 #endif
     }
 public:
@@ -251,7 +259,13 @@ public:
     bool mkdir(std::string const& tar) const{
         Path temp = *this;
         temp.join(parse(tar));
+        //_mkdir
+#ifdef _MSC_VER
+        return _mkdir(temp.str().c_str()) == 0;
+#else
         return ::mkdir(temp.str().c_str()) == 0;
+#endif
+        
     }
 
 

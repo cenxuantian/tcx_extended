@@ -97,20 +97,9 @@ public:
         cur->is_end = true;
     }
 
-    std::optional<Trie_26<true>> sub_trie(std::string const& prefix){
-        Node* cur = root_;
-        for(char i : prefix){
-            int index = get_index(i);
-            if(index==-1) return {};
+    std::optional<Trie_26<true>> sub_trie(std::string const& prefix);
 
-            if(!cur) return {};
-            if(!cur->next[index]) return {};
-            else{
-                cur = cur->next[index];
-            }
-        }
-        return {Trie_26<true>((Trie_26<true>::Node*)cur)};
-    }
+
 
     bool search(std::string const& prefix){
         std::optional<Trie_26<true>> trie_sub = sub_trie(prefix);
@@ -135,6 +124,21 @@ public:
     }
 
 };
+template<bool view = false>
+std::optional<Trie_26<true>> Trie_26<view>::sub_trie(std::string const& prefix){
+    Node* cur = root_;
+    for(char i : prefix){
+        int index = get_index(i);
+        if(index==-1) return {};
+
+        if(!cur) return {};
+        if(!cur->next[index]) return {};
+        else{
+            cur = cur->next[index];
+        }
+    }
+    return {Trie_26<true>((Trie_26<true>::Node*)cur)};
+}
 
 
 } // namespace tcx
