@@ -344,8 +344,7 @@ private:
 
         try_send:
         if(left_size<=0)return true;
-        int this_time_write_size =std::min(left_size,write_buf_size);
-
+        int this_time_write_size = min(left_size, write_buf_size);
         // wait
         if(wait_forever) {
             if(!await_writeable(_timeout).has_value()) return false;
@@ -397,7 +396,7 @@ private:
             blob.resize(total_read_size);
             return blob;// read finish
         }
-        int this_time_read_size = std::min(left_size,read_buf_size);
+        int this_time_read_size = min(left_size,read_buf_size);
 
         // wait
         if(wait_forever) {
