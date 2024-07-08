@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 
 
 set(ENABLE_CUDA_FOR_T_PIC TRUE)
+set(ENABLE_CUDA_FOR_T_MATRIX TRUE)
 
 if(MINGW)
 project(t_extended VERSION 0.1.0 LANGUAGES C CXX)
@@ -80,5 +81,15 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/tcx_pic/cpp_src SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/tcx_pic/common SRC)
 add_executable(cuda_pic_test examples/cuda_pic_test.cpp ${SRC})
 target_include_directories(cuda_pic_test PUBLIC ${PROJECT_SOURCE_DIR}/tcx_pic/include)
+
+endif()
+
+if(MSVC)
+if(ENABLE_CUDA_FOR_T_MATRIX)
+add_executable(cuda_matrix_test examples/cuda_matrix_test.cpp ${PROJECT_SOURCE_DIR}/tcx_pic/cu_src/t_matrix.cu)
+target_include_directories(cuda_matrix_test PUBLIC ${PROJECT_SOURCE_DIR}/tcx_pic/include)
+set_target_properties(cuda_matrix_test PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET cuda_matrix_test PROPERTY CUDA_ARCHITECTURES OFF)
+endif()
 
 endif()

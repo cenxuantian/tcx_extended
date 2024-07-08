@@ -7,5 +7,6 @@ D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/t_sock_test
 D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/sim_test.dir
 D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/load_dll_test.dir
 D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/cuda_pic_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/cuda_matrix_test.dir
 D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/edit_cache.dir
 D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug/CMakeFiles/rebuild_cache.dir
