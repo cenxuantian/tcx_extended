@@ -1,0 +1,11 @@
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/t_main_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/t_svg_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/t_http_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/http_client_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/http_server_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/t_sock_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/sim_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/load_dll_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/cuda_pic_test.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/edit_cache.dir
+D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,132 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "t_extended",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "cuda_pic_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-cuda_pic_test-Debug-e6a588590d02d325b8de.json",
+					"name" : "cuda_pic_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "http_client_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-http_client_test-Debug-14a67a3080c91c87ff55.json",
+					"name" : "http_client_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "http_server_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-http_server_test-Debug-9aa3dd08422ecf7f224a.json",
+					"name" : "http_server_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "load_dll_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-load_dll_test-Debug-f865610601114297c32e.json",
+					"name" : "load_dll_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "sim_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sim_test-Debug-0c969f234665172177b7.json",
+					"name" : "sim_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_http_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_http_test-Debug-6d71fe7a7193d3a388cd.json",
+					"name" : "t_http_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_main_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_main_test-Debug-56990096565ff88b1c0f.json",
+					"name" : "t_main_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_sock_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_sock_test-Debug-8891d9cb785e2f8354d0.json",
+					"name" : "t_sock_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_svg_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_svg_test-Debug-9e9f8a87bde6265cca12.json",
+					"name" : "t_svg_test",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Debug",
+		"source" : "D:/User/Desktop/git_proj/tcx_extended"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}

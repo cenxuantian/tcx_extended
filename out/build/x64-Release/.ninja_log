@@ -1,0 +1,22 @@
+# ninja log v5
+53	149	7421490037030151	CMakeFiles/cuda_pic_test.dir/tcx_pic/common/t_picture_common.cpp.obj	8ce605c2131ec306
+41	1145	7421490046913698	CMakeFiles/cuda_pic_test.dir/examples/cuda_pic_test.cpp.obj	59312c0ac0fdd198
+36	1775	7421490053190940	CMakeFiles/load_dll_test.dir/examples/load_dll_test.cpp.obj	94936a8e7c3957a
+1775	2568	7421490060414615	load_dll_test.exe	dd708e12ec1bc8ca
+25	3735	7421490072666968	CMakeFiles/t_sock_test.dir/examples/socket_test.cpp.obj	5b7546eee340aca2
+31	4117	7421490076592617	CMakeFiles/sim_test.dir/examples/sim_test.cpp.obj	ce0c59dcaf7fd600
+7	4221	7421490077534329	CMakeFiles/t_svg_test.dir/examples/svg_test.cpp.obj	b495d58579bdca5c
+3735	4775	7421490081932690	t_sock_test.exe	b4459e1c9ebac4bf
+4117	5074	7421490085450949	sim_test.exe	495a3b967499863e
+4222	5137	7421490086327877	t_svg_test.exe	cbcb1065da30f77
+2	5398	7421490089470546	CMakeFiles/t_main_test.dir/main.cpp.obj	4a351d7513cdb3f2
+5399	7117	7421490105346380	t_main_test.exe	e6c46cdad25ffb66
+16	8042	7421490115874909	CMakeFiles/http_client_test.dir/examples/http_client_test.cpp.obj	d2b4d9aa5c1f5f0d
+20	8142	7421490116660349	CMakeFiles/http_server_test.dir/examples/http_server_test.cpp.obj	d11a7ac50773884b
+46	8198	7421490116973100	CMakeFiles/cuda_pic_test.dir/tcx_pic/cu_src/t_picture.cu.obj	5825b1a8976553bf
+8042	8743	7421490122312654	http_client_test.exe	a1cab847d6a7f06f
+8142	8822	7421490123254581	http_server_test.exe	c67aab6d92ba4016
+11	9005	7421490125566543	CMakeFiles/t_http_test.dir/examples/http_test.cpp.obj	fb67af6537a5b67c
+9005	9501	7421490130004249	t_http_test.exe	dddd979f9487ac8b
+8199	10589	7421490141300538	CMakeFiles/cuda_pic_test.dir/cmake_device_link.obj	76dcdce48af7c617
+10589	11036	7421490145382336	cuda_pic_test.exe	58469717b4365b34

@@ -7,6 +7,11 @@ if(MINGW)
 project(t_extended VERSION 0.1.0 LANGUAGES C CXX)
 else()
 project(t_extended VERSION 0.1.0 LANGUAGES C CXX CUDA)
+
+FIND_PACKAGE(CUDA REQUIRED)
+INCLUDE_DIRECTORIES( ${CUDA_INCLUDE_DIRS})
+link_directories(${CUDA_INCLUDE_DIRS}/../lib/x64)
+
 endif()
 set(CMAKE_CXX_STANDARD 20)
 

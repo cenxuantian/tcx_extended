@@ -1,0 +1,132 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-RelWithDebInfo-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8
+					]
+				}
+			],
+			"name" : "RelWithDebInfo",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "t_extended",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "cuda_pic_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-cuda_pic_test-RelWithDebInfo-cf7b4b5d380f57ed39a9.json",
+					"name" : "cuda_pic_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "http_client_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-http_client_test-RelWithDebInfo-ed9917e3f5708e1ba9c6.json",
+					"name" : "http_client_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "http_server_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-http_server_test-RelWithDebInfo-afcb5307a3e80c1849c2.json",
+					"name" : "http_server_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "load_dll_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-load_dll_test-RelWithDebInfo-6a10182641032687e3da.json",
+					"name" : "load_dll_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "sim_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sim_test-RelWithDebInfo-27f6e60cc549602f4248.json",
+					"name" : "sim_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_http_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_http_test-RelWithDebInfo-09debb9c3f7b91e7702f.json",
+					"name" : "t_http_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_main_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_main_test-RelWithDebInfo-5878ec4cc3b4c06a7e40.json",
+					"name" : "t_main_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_sock_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_sock_test-RelWithDebInfo-5e69d78e5dd8e235a5aa.json",
+					"name" : "t_sock_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "t_svg_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-t_svg_test-RelWithDebInfo-f5630a403c18d934188d.json",
+					"name" : "t_svg_test",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release",
+		"source" : "D:/User/Desktop/git_proj/tcx_extended"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}
