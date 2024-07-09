@@ -1,6 +1,6 @@
 # build binaries
 /build
-/.out
+/out
 # project files
 /.vscode
 /.vs
