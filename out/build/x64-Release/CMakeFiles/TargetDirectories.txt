@@ -1,3 +1,0 @@
-D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/continous_heap_test.dir
-D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/edit_cache.dir
-D:/User/Desktop/git_proj/tcx_extended/out/build/x64-Release/CMakeFiles/rebuild_cache.dir
