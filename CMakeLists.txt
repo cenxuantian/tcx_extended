@@ -14,8 +14,8 @@ set(BUILD_SIMULATION_TEST FALSE)
 set(BUILD_LOAD_DLL_TEST FALSE)
 set(BUILD_PIC_TEST FALSE)
 set(BUILD_MATRIX_TEST FALSE)
-set(BUILD_CONTINOOUS_HEAP_TEST TRUE)
-
+set(BUILD_CONTINOOUS_HEAP_TEST FALSE)
+set(BUILD_CONTINOOUS_RBTREE_TEST TRUE)
 
 if(MINGW)
 project(t_extended VERSION 0.1.0 LANGUAGES C CXX)
@@ -123,7 +123,13 @@ endif()
 
 
 if(BUILD_CONTINOOUS_HEAP_TEST)
-add_executable(continous_heap_test 
+add_executable(continuous_heap_test 
 	examples/continuous_heap_test.c
 	${PROJECT_SOURCE_DIR}/tcx_continuous_container/t_continuous_heap.c)
+endif()
+
+if(BUILD_CONTINOOUS_RBTREE_TEST)
+add_executable(continuous_rbtree_test 
+	examples/continuous_rbtree_test.c
+	${PROJECT_SOURCE_DIR}/tcx_continuous_container/t_continuous_rbtree.c)
 endif()
