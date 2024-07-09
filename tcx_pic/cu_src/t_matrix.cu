@@ -1,26 +1,6 @@
 #include "../include/t_matrix.h"
 
-
-#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-#include <device_launch_parameters.h>
-
-#include <iostream>
-
-
-#define __cu_check_ret(_err, ...)\
-    if(_err != cudaSuccess){\
-        std::cerr << "CUDA Runtime Error at: " << __FILE__ << ":" << __LINE__\
-                    << cudaGetErrorString(err) << " " << __FUNCTION__ << std::endl;\
-        return __VA_ARGS__; \
-    }(void)0
-
-#define __cu_check(_err,...)\
-    if(_err != cudaSuccess){\
-        std::cerr << "CUDA Runtime Error at: " << __FILE__ << ":" << __LINE__\
-                    << cudaGetErrorString(err) << " " << __FUNCTION__ << std::endl;\
-        __VA_ARGS__; \
-    }(void)0
+#include "t_cuda_def.cuh"
 
 
 
@@ -76,38 +56,6 @@ loop:
     return;
 
 }
-__global__ void g_matnum_add_int(void* _1, double num, int width) {
-    
-    int* _a = (int*)_1;
-
-    int cur_row = blockIdx.x;
-    int cur_cow = threadIdx.x;
-    
-    loop:
-    _a[cur_row * width + cur_cow] += num;
-
-    cur_cow += blockDim.x;
-    if (cur_cow < width) {
-        goto loop;
-    }
-    return;
-}
-__global__ void g_matnum_add_double(void* _1, double num, int width) {
-
-    double* _a = (double*)_1;
-
-    int cur_row = blockIdx.x;
-    int cur_cow = threadIdx.x;
-
-loop:
-    _a[cur_row * width + cur_cow] += num;
-
-    cur_cow += blockDim.x;
-    if (cur_cow < width) {
-        goto loop;
-    }
-    return;
-}
 __global__ void g_matnum_multi_int(void* _1, double num, int width) {
     int* _a = (int*)_1;
 
@@ -139,6 +87,26 @@ loop:
     }
     return;
 }
+__global__ void g_mat_add_num_int(void* _1, double num, int max_idx) {
+    int i = t_cuIdx;
+    int max_thread = t_cuMaxThreadCount;
+    int* data = (int*)_1;
+    
+    while (i < max_idx) {
+        data[i] += num;
+        i += max_thread;
+    }
+}
+__global__ void g_mat_add_num_double(void* _1, double num, int max_idx) {
+    int i = t_cuIdx;
+    int max_thread = t_cuMaxThreadCount;
+    double* data = (double*)_1;
+
+    while (i < max_idx) {
+        data[i] += num;
+        i += max_thread;
+    }
+}
 int t_mat_add_mat(t_mat* _1, t_mat* _2) {
     if (!(_1->width == _2->width && _1->height == _2->height && _1->each_size == _2->each_size)) {
         return T_MAT_ERR;
@@ -152,11 +120,14 @@ int t_mat_add_mat(t_mat* _1, t_mat* _2) {
     return T_MAT_OK;
 }
 int t_mat_add_num(t_mat* _1, double num) {
+    int max_idx = _1->height * _1->width;
+    int block, thread;
+    t_cu_get_launch_arg(max_idx, &block, &thread);
     if (_1->each_size == sizeof(int)) {
-        g_matnum_add_int << <_1->height, min(_1->width, 1024) >> > (_1->data, num, _1->width);
+        g_mat_add_num_int << <block, thread >>> (_1->data, num, max_idx);
     }
     else if (_1->each_size == sizeof(double)) {
-        g_matnum_add_int << <_1->height, min(_1->width, 1024) >> > (_1->data, num, _1->width);
+        g_mat_add_num_double << <block, thread >>> (_1->data, num, max_idx);
     }
     
     return T_MAT_OK;
