@@ -2,10 +2,10 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "cuda_matrix_test.exe"
+			"path" : "continous_heap_test.exe"
 		},
 		{
-			"path" : "cuda_matrix_test.pdb"
+			"path" : "continous_heap_test.pdb"
 		}
 	],
 	"backtrace" : 1,
@@ -16,8 +16,7 @@
 			"add_executable",
 			"link_directories",
 			"INCLUDE_DIRECTORIES",
-			"include_directories",
-			"target_include_directories"
+			"include_directories"
 		],
 		"files" : 
 		[
@@ -31,37 +30,37 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 89,
+				"line" : 126,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 14,
+				"line" : 27,
 				"parent" : 0
 			},
 			{
 				"command" : 2,
 				"file" : 0,
-				"line" : 13,
+				"line" : 26,
 				"parent" : 0
 			},
 			{
 				"command" : 3,
 				"file" : 0,
-				"line" : 30,
+				"line" : 33,
 				"parent" : 0
 			},
 			{
 				"command" : 3,
 				"file" : 0,
-				"line" : 31,
+				"line" : 34,
 				"parent" : 0
 			},
 			{
-				"command" : 4,
+				"command" : 3,
 				"file" : 0,
-				"line" : 90,
+				"line" : 35,
 				"parent" : 0
 			}
 		]
@@ -72,7 +71,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++20"
+					"fragment" : "/DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1"
 				}
 			],
 			"includes" : 
@@ -87,75 +86,28 @@
 				},
 				{
 					"backtrace" : 5,
-					"path" : "D:/User/Desktop/git_proj/tcx_extended/tcx_net"
+					"path" : "D:/User/Desktop/git_proj/tcx_extended/tcx_continuous_container"
 				},
 				{
 					"backtrace" : 6,
-					"path" : "D:/User/Desktop/git_proj/tcx_extended/tcx_pic/include"
-				}
-			],
-			"language" : "CXX",
-			"languageStandard" : 
-			{
-				"backtraces" : 
-				[
-					1
-				],
-				"standard" : "20"
-			},
-			"sourceIndexes" : 
-			[
-				0
-			]
-		},
-		{
-			"compileCommandFragments" : 
-			[
-				{
-					"fragment" : "-D_WINDOWS -Xcompiler=\"/W3 /GR /EHsc\" -Xcompiler=\"-MDd  -Zi -Ob0 -Od /RTC1\" -std=c++20"
-				}
-			],
-			"includes" : 
-			[
-				{
-					"backtrace" : 3,
-					"path" : "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.5/include"
-				},
-				{
-					"backtrace" : 4,
-					"path" : "D:/User/Desktop/git_proj/tcx_extended/tcx_standalone"
-				},
-				{
-					"backtrace" : 5,
 					"path" : "D:/User/Desktop/git_proj/tcx_extended/tcx_net"
-				},
-				{
-					"backtrace" : 6,
-					"path" : "D:/User/Desktop/git_proj/tcx_extended/tcx_pic/include"
 				}
 			],
-			"language" : "CUDA",
-			"languageStandard" : 
-			{
-				"backtraces" : 
-				[
-					1
-				],
-				"standard" : "20"
-			},
+			"language" : "C",
 			"sourceIndexes" : 
 			[
+				0,
 				1
 			]
 		}
 	],
-	"id" : "cuda_matrix_test::@6890427a1f51a3e7e1df",
+	"id" : "continous_heap_test::@6890427a1f51a3e7e1df",
 	"link" : 
 	{
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1",
+				"fragment" : "/DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1",
 				"role" : "flags"
 			},
 			{
@@ -168,26 +120,14 @@
 				"role" : "libraryPath"
 			},
 			{
-				"fragment" : "-LIBPATH:C:\\PROGRA~1\\NVIDIA~2\\CUDA\\v12.5\\lib\\x64",
-				"role" : "libraryPath"
-			},
-			{
-				"fragment" : "cudadevrt.lib",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "cudart_static.lib",
-				"role" : "libraries"
-			},
-			{
 				"fragment" : "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
 				"role" : "libraries"
 			}
 		],
-		"language" : "CXX"
+		"language" : "C"
 	},
-	"name" : "cuda_matrix_test",
-	"nameOnDisk" : "cuda_matrix_test.exe",
+	"name" : "continous_heap_test",
+	"nameOnDisk" : "continous_heap_test.exe",
 	"paths" : 
 	{
 		"build" : ".",
@@ -209,13 +149,13 @@
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "examples/cuda_matrix_test.cpp",
+			"path" : "examples/continuous_heap_test.c",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
-			"compileGroupIndex" : 1,
-			"path" : "tcx_pic/cu_src/t_matrix.cu",
+			"compileGroupIndex" : 0,
+			"path" : "tcx_continuous_container/t_continuous_heap.c",
 			"sourceGroupIndex" : 0
 		}
 	],
