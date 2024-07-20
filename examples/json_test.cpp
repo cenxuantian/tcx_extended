@@ -4,8 +4,8 @@
 using namespace tcx::JSON;
 
 int main() {
-	var a = false;
-	to_json<bool>::type b;
-	std::cout << stringfy(to_json<bool>::value) << '\n';
+	var a = 10;
+	var c = a;
+	//std::cout << stringfy(b) << '\n';
 	return 0;
 }
