@@ -40,7 +40,7 @@ t_websocket_tools.hpp
 > *file and path management tools*
 ### t_interval_map.hpp
 > *template interval map implementation*
-### t_json_.hpp
+### t_json.hpp
 > *CPP JSON processor*  
 > *Allows you use JSON as easy as it on JavaScript*
 - Overview  
