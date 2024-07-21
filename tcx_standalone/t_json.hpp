@@ -5,11 +5,36 @@ THIS t_json.hpp is relay on C++ stl
 
 */
 
+/*
+MIT License
+
+Copyright (c) 2024 Cenxuan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+
+
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
-#include <type_traits>
 #include <string>
-
 
 
 
@@ -18,26 +43,36 @@ namespace json {
 
 
 // predef
+
+// the main variable class of JSON
 class var;
-class JSON_GLOBAL_FUNCS;
-struct Null {};
-struct Undefined {};
+// Type let is exact the same as var. It allows you to use grammar like -- let a = 10;
 typedef var let;
+// This class has a pre-created instance called JSON under namespace tcx::json.
+// You can use tcx::json::JSON to call those functions
+class JSON_GLOBAL_FUNCS;
+// Type Null similar to the JavaScript
+struct Null {};
+// Type Undefined similar to the JavaScript, which means this variable has not been assigned any value
+struct Undefined {};
 typedef long double Number;
 typedef bool Boolean;
 typedef std::string String;
 typedef std::unordered_map<String, var> Object;
 typedef std::vector<var> Array;
+
 enum ItemType {
-	OBJECT,
-	ARRAY,
-	BOOLEAN,
-	NUMBER,
-	UNDEFINED,
-	J_NULL,
-	STRING,
+	OBJECT		= 0,
+	ARRAY		= 1,
+	BOOLEAN		= 2,
+	NUMBER		= 3,
+	UNDEFINED	= 4,
+	J_NULL		= 5,
+	STRING		= 6,
 };
+// An global instance of class Null
 constexpr Null null;
+// An global instance of class Undefined
 constexpr Undefined undefined;
 
 // predef static functions
@@ -52,6 +87,8 @@ ItemType typeof(var const&);
 	template<> struct t_to_json<from_t> { inline static ItemType value = to_enum; typedef to_t type; };
 #define _DEREF_AS(type,data) (*((type*)data))
 #define _DEREF_AS_CONST(type,data) (*((const type*)data))
+
+// meta from type to JSON type
 template<typename T> struct t_to_json { inline static ItemType value = UNDEFINED; typedef Undefined type;};
 _ROUTE_TYPE(const char*, String, STRING)
 _ROUTE_TYPE(char*, String, STRING)
@@ -84,7 +121,7 @@ private:
 private:
 	void __default_construct();
 	void __copy_construct(const var& input);
-	void __move_construct(var&& input);
+	void __move_construct(var&& input) noexcept;
 	template<typename T> void __any_constructor(T&& input);
 
 public:
@@ -155,14 +192,14 @@ public:
 	String stringfy(ItemType type)const;
 	var parse(String const&)const;
 };
+// An global instance of class JSON_GLOBAL_FUNCS
 static const JSON_GLOBAL_FUNCS JSON;
 
+/*------------------------------------------------------------------------------------------------
 
+Interface Ends here!
 
-
-
-
-
+------------------------------------------------------------------------------------------------*/
 
 
 
@@ -220,7 +257,7 @@ void var::__copy_construct(const var& input) {
 	default:break;
 	}
 }
-void var::__move_construct(var&& input) {
+void var::__move_construct(var&& input)noexcept {
 	this->type_ = input.type_;
 	this->data_ = input.data_;
 	input.leak();
@@ -658,3 +695,8 @@ var JSON_GLOBAL_FUNCS::parse(String const&)const {
 
 
 #undef __requires
+#undef type_eq
+#undef decayT
+#undef _ROUTE_TYPE
+#undef _DEREF_AS
+#undef _DEREF_AS_CONST
