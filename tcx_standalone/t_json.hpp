@@ -29,6 +29,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+#pragma once
+#ifndef ___TCX_T_JSON_HPP__NEW_VERSION__
+#define ___TCX_T_JSON_HPP__NEW_VERSION__
 
 
 #include <type_traits>
@@ -36,7 +39,7 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <stack>
-
+#include <variant>
 
 
 namespace tcx {
@@ -56,10 +59,13 @@ class JSON_GLOBAL_FUNCS;
 struct Null {};
 // Type Undefined similar to the JavaScript, which means this variable has not been assigned any value
 struct Undefined {};
+// struct for construct hash map
+struct __Var_Hash { inline size_t operator()(var const&) const noexcept; };
 typedef long double Number;
 typedef bool Boolean;
 typedef std::string String;
-typedef std::unordered_map<String, var> Object;
+
+typedef std::unordered_map<var, var, __Var_Hash> Object;
 typedef std::vector<var> Array;
 
 enum ItemType {
@@ -88,6 +94,7 @@ ItemType typeof(var const&);
 	template<> struct t_to_json<from_t> { inline static ItemType value = to_enum; typedef to_t type; };
 #define _DEREF_AS(type,data) (*((type*)data))
 #define _DEREF_AS_CONST(type,data) (*((const type*)data))
+#define _DE_CONST(data) const_cast<std::decay_t<decltype(data)>&>(data)
 
 // meta from type to JSON type
 template<typename T> struct t_to_json { inline static ItemType value = UNDEFINED; typedef Undefined type;};
@@ -113,6 +120,7 @@ _ROUTE_TYPE(float, Number, NUMBER)
 _ROUTE_TYPE(double, Number, NUMBER)
 _ROUTE_TYPE(long double, Number, NUMBER)
 
+
 class var {
 	friend class JSON_GLOBAL_FUNCS;
 	friend ItemType typeof(var const&);
@@ -125,7 +133,34 @@ private:
 	void __move_construct(var&& input) noexcept;
 	template<typename T> void __any_constructor(T&& input);
 
+public:// types
+struct iterator {
+	friend class var;
+private:
+	var* var_ref_ = nullptr;
+	std::variant<Object::iterator, Array::iterator, bool> iter_=false;
 public:
+	bool operator!=(iterator const&)const noexcept;
+	bool operator==(iterator const&)const noexcept;
+	iterator& operator++();
+	const iterator operator++(int);
+	var& operator*();
+};
+
+struct const_iterator {
+	friend class var;
+private:
+	const var* var_ref_=nullptr;
+	std::variant<Object::const_iterator, Array::const_iterator, bool> iter_=false;
+public:
+	bool operator!=(const_iterator const&)const noexcept;
+	bool operator==(const_iterator const&)const noexcept;
+	const_iterator& operator++();
+	const const_iterator operator++(int);
+	const var& operator*();
+};
+
+public:// functions
 	// constructor
 	var();
  	var(var const&);
@@ -142,8 +177,9 @@ public:
 
 	// get data
 	var& operator[](var const&);
+	const var& operator[](var const&)const;
 	void* data();
-
+	const void* data()const;
 
 	// type cast
 	template<typename T, __requires(type_eq(T, typename t_to_json<T>::type))> T& as() { return _DEREF_AS(T, this->data_); }
@@ -162,6 +198,14 @@ public:
 	// String func
 	char& charAt(size_t pos);
 	const char& charAt(size_t pos) const;
+
+	// iteration
+	iterator begin() noexcept;
+	iterator end() noexcept;
+	const_iterator begin() const noexcept;
+	const_iterator end() const noexcept;
+	const_iterator cbegin()const noexcept;
+	const_iterator cend()const noexcept;
 
 	// basic operation
 	size_t length();
@@ -234,17 +278,294 @@ Interface Ends here!
 
 // implementations
 namespace {
+// to check if 2 numbers equal to each other
 inline bool __Number_eqaul(Number _1, Number _2, Number precision = 1.0E-10) {
 	Number diff = _1 - _2;
 	if (diff < 0) diff = -diff;
 	return diff < precision;
 }
+// to check if a Number is a integer
 inline bool __Is_int(Number _1) {
 	return __Number_eqaul(std::round(_1), _1);
 }
+// to chech if the __c is from 0 to 9
+inline bool __IsNumber(char __c) noexcept {
+	if (__c >= '0' && __c <= '9')return true;
+	else if (__c == '.')return true;
+	else return false;
+}
+// convert a char to double
+inline double __ToDouble(const char __c) noexcept {
+	switch (__c)
+	{
+	case '0':return 0;
+	case '1':return 1;
+	case '2':return 2;
+	case '3':return 3;
+	case '4':return 4;
+	case '5':return 5;
+	case '6':return 6;
+	case '7':return 7;
+	case '8':return 8;
+	case '9':return 9;
+	default:return __c;
+	}
+}
+
+}
+// namespace for parser
+namespace __JSON_Parser_Funcs {
+static const  char __space_char_set[4] = { ' ','\t','\r','\n' };
+// check if __c is space
+inline bool __Is_Space(char __c) noexcept {
+	for (int i = 0; i < 4; i++) {
+		if (__c == __space_char_set[i]) return true;
+	}
+	return false;
+}
+// find first the first index of char which is not equal to any item in __space_char_set
+inline size_t __Find_First_Not_Space(const String& str, size_t start = 0, size_t end = String::npos) {
+	size_t size = str.size();
+	if (!size)return String::npos;
+	end = std::min(end, size - 1);
+	for (size_t i = start; i <= end; i++) {
+		if (!__Is_Space(str[i])) {
+			return i;
+		}
+	}
+	return String::npos;
+}
+// find first the last index of char which is not equal to any item in __space_char_set
+inline size_t __Find_Last_Not_Space(const String& str, size_t start = 0, size_t end = String::npos) {
+	size_t size = str.size();
+	if (!size)return String::npos;
+	end = std::min(size - 1, end);
+	for (size_t i = end; i >= start; i--) {
+		if (!__Is_Space(str[i])) {
+			return i;
+		}
+	}
+	return String::npos;
+}
+// contains start and stop
+inline String __StrBetween(const String& src, size_t start, size_t stop) {
+	if (start > stop) {
+		return "";
+	}
+	return src.substr(start, stop - start + 1);
+}
+// the first must matched
+// return the matched end position
+inline size_t __Match(const String& str, char tar_start, char tar_stop, size_t cur_pos, size_t end_pos) {
+	if (cur_pos >= end_pos - 1) { // not last
+		return String::npos;
+	}
+	if (str[cur_pos] != tar_start)return String::npos;
+
+	if (tar_start == '"') {
+		for (size_t i = cur_pos + 1; i < end_pos; i++) {
+			if (str[i] == tar_stop) {
+				if (i == cur_pos + 1)return cur_pos + 1;
+				if (str[i - 1] != '\\') {
+					return i;
+				}
+			}
+		}
+		return String::npos;
+	}
+	else if (tar_start == '[' || tar_start == '{') {
+		std::stack<size_t> record;
+		record.push(cur_pos);
+		for (size_t i = cur_pos + 1; i < end_pos; i++) {
+			if (str[i] == tar_start) {
+				record.push(i);
+			}
+			else if (str[i] == tar_stop) {
+				if (!record.size()) {
+					return String::npos;
+				}
+				record.pop();
+				if (!record.size()) {
+					return i;
+				}
+			}
+		}
+		return String::npos;
+	}
+	else return String::npos;
+
+
+}
+// variant of function __Match
+inline size_t __MatchQuate(const String& str, size_t cur_pos, size_t end_pos) {
+	return __Match(str, '"', '"', cur_pos, end_pos);
+}
+// variant of function __Match
+inline size_t __MatchCurlyBrace(const String& str, size_t cur_pos, size_t end_pos) {
+	return __Match(str, '{', '}', cur_pos, end_pos);
+}
+// variant of function __Match
+inline size_t __MatchSquareBrace(const String& str, size_t cur_pos, size_t end_pos) {
+	return __Match(str, '[', ']', cur_pos, end_pos);
+}
+// parse the Object
+var __ParseObject(const String& str, size_t& total_size, size_t& cur_pos, size_t& end_pos) {
+	// obj start
+	var res = Object();
+read_one_member:    // lable of loop
+	{
+		// std::cout << res.Stringfy() << "\n";
+		cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
+		if (cur_pos == end_pos) {
+			return res;
+		}
+		// read key
+		if (str[cur_pos] != '"')return Null();
+		size_t out_quate = __MatchQuate(str, cur_pos, end_pos); // this is the position of '"'
+		if (out_quate == String::npos)return Null();
+		String cur_key = __StrBetween(str, cur_pos + 1, out_quate - 1);
+		if (cur_pos >= end_pos)return Null();
+		cur_pos = __Find_First_Not_Space(str, out_quate + 1, end_pos);
+		if (str[cur_pos] != ':') return Null();
+		// read value
+		cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
+		if (cur_pos >= end_pos)return Null();
+		char val_first_key = str[cur_pos];
+		if (val_first_key == '"') {  // var is str
+			out_quate = __MatchQuate(str, cur_pos, end_pos);
+			if (out_quate < end_pos) {
+				res[cur_key] = __StrBetween(str, cur_pos + 1, out_quate - 1);
+			}
+			cur_pos = out_quate + 1;
+		}
+		else if (val_first_key == '[') { // var is array
+			out_quate = __MatchSquareBrace(str, cur_pos, end_pos);
+			if (out_quate < end_pos) {
+				res[cur_key] = JSON.parse(__StrBetween(str, cur_pos, out_quate));
+			}
+			cur_pos = out_quate + 1;
+		}
+		else if (val_first_key == '{') { // var is object
+			out_quate = __MatchCurlyBrace(str, cur_pos, end_pos);
+			if (out_quate < end_pos) {
+				res[cur_key] = JSON.parse(__StrBetween(str, cur_pos, out_quate));
+			}
+			cur_pos = out_quate + 1;
+		}
+		else if (val_first_key == 'f') { // var is false
+			if (((cur_pos + 4) < end_pos) && (__StrBetween(str, cur_pos, cur_pos + 4) == "false")) {
+				res[cur_key] = false;
+			}
+			cur_pos = cur_pos + 5;
+		}
+		else if (val_first_key == 't') { // val is true
+			if (((cur_pos + 3) <= (end_pos - 1)) && (__StrBetween(str, cur_pos, cur_pos + 3) == "true")) {
+				res[cur_key] = true;
+			}
+			cur_pos = cur_pos + 4;
+		}
+		else { // val can be a number
+			size_t num_start = cur_pos;
+			while (__IsNumber(str[cur_pos]) && cur_pos < end_pos) {
+				cur_pos++;
+			}
+			if (cur_pos == num_start + 1) {
+				res[cur_key] = __ToDouble(str[num_start]);
+			}
+			else {
+				try {
+					res[cur_key] = std::stod(__StrBetween(str, num_start, cur_pos - 1));
+				}
+				catch (const std::exception&) {
+					return Null();
+				}
+			}
+		}
+		if (cur_pos == end_pos)return res;
+		cur_pos = __Find_First_Not_Space(str, cur_pos, end_pos);
+		if (cur_pos == end_pos)return res;
+		if (str[cur_pos] == ',') {
+			goto read_one_member;
+		}
+		else return Null();
+	}
+
+}
+// parse the Array
+var __ParseArray(const String& str, size_t& total_size, size_t& cur_pos, size_t& end_pos) {
+	// arr start
+	var res = Array();
+read_one_value: // lable of loop
+	cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
+	if (cur_pos == end_pos) {
+		return res;
+	}
+
+	char val_first_key = str[cur_pos];
+	if (val_first_key == '"') {  // val is str
+		size_t out_quate = __MatchQuate(str, cur_pos, end_pos);
+		if (out_quate < end_pos) {
+			res.push(__StrBetween(str, cur_pos + 1, out_quate - 1));
+		}
+		cur_pos = out_quate + 1;
+	}
+	else if (val_first_key == '[') { // val is array
+		size_t out_quate = __MatchSquareBrace(str, cur_pos, end_pos);
+		if (out_quate < end_pos) {
+			res.push(JSON.parse(__StrBetween(str, cur_pos, out_quate)));
+		}
+		cur_pos = out_quate + 1;
+	}
+	else if (val_first_key == '{') { // val is object
+		size_t out_quate = __MatchCurlyBrace(str, cur_pos, end_pos);
+		if (out_quate < end_pos) {
+			res.push(JSON.parse(__StrBetween(str, cur_pos, out_quate)));
+		}
+		cur_pos = out_quate + 1;
+	}
+	else if (val_first_key == 'f') { // val is false
+		if (((cur_pos + 4) < end_pos) && (__StrBetween(str, cur_pos, cur_pos + 4) == "false")) {
+			res.push(false);
+		}
+		cur_pos = cur_pos + 5;
+	}
+	else if (val_first_key == 't') { // val is true
+		if (((cur_pos + 3) <= (end_pos - 1)) && (__StrBetween(str, cur_pos, cur_pos + 3) == "true")) {
+			res.push(true);
+		}
+		cur_pos = cur_pos + 4;
+	}
+	else { // val can be a number
+		size_t num_start = cur_pos;
+		while (__IsNumber(str[cur_pos]) && cur_pos < end_pos) {
+			cur_pos++;
+		}
+		if (cur_pos == num_start + 1) {
+			res.push(__ToDouble(str[num_start]));
+		}
+		else {
+			std::string __current_value = __StrBetween(str, num_start, cur_pos - 1);
+			try {
+				res.push(std::stod(__current_value));
+			}
+			catch (const std::exception&) {
+				res.push(Null());
+			}
+		}
+	}
+	if (cur_pos == end_pos)return res;
+	cur_pos = __Find_First_Not_Space(str, cur_pos, end_pos);
+	if (cur_pos == end_pos)return res;
+	if (str[cur_pos] == ',') {
+		goto read_one_value;
+	}
+	else return Null();
+}
 }
 
 
+
+// inplementations for var
 void var::__default_construct() {
 	this->type_ = UNDEFINED;
 	this->data_ = nullptr;
@@ -298,7 +619,7 @@ template<typename T> void var::__any_constructor(T&& input) {
 	else __default_construct();
 }
 
-
+// constructors and deconstructor
 var::var(){
 	__default_construct();
 }
@@ -330,10 +651,11 @@ var::~var() {
 	release();
 }
 
+// operators for get the data
 var& var::operator[](var const& value) {
 	switch (type_)
 	{
-	case tcx::json::OBJECT: return this->as<Object>()[value.as<String>()];
+	case tcx::json::OBJECT:  return this->as<Object>()[value];
 	case tcx::json::ARRAY: return this->as<Array>()[static_cast<size_t>( value.as<Number>())];
 	case tcx::json::BOOLEAN:throw std::logic_error("No operator[] for typeof Boolean");
 	case tcx::json::NUMBER: throw std::logic_error("No operator[] for typeof Number");
@@ -344,7 +666,24 @@ var& var::operator[](var const& value) {
 	}
 	return *this;
 }
+const var& var::operator[](var const& value) const {
+	switch (type_)
+	{
+	case tcx::json::OBJECT:  return _DE_CONST(this->as<Object>())[value];
+	case tcx::json::ARRAY: return this->as<Array>()[static_cast<size_t>(value.as<Number>())];
+	case tcx::json::BOOLEAN:throw std::logic_error("No operator[] for typeof Boolean");
+	case tcx::json::NUMBER: throw std::logic_error("No operator[] for typeof Number");
+	case tcx::json::UNDEFINED:throw std::logic_error("No operator[] for typeof Undefined");
+	case tcx::json::J_NULL:throw std::logic_error("No operator[] for typeof Null");
+	case tcx::json::STRING:throw std::logic_error("No operator[] for typeof String. Please use charAt()");
+	default: throw std::logic_error("No operator[] for typeof Unknown Type");
+	}
+	return *this;
+}
 void* var::data() {
+	return this->data_;
+}
+const void* var::data() const{
 	return this->data_;
 }
 void var::leak() {
@@ -392,6 +731,256 @@ const char& var::charAt(size_t pos) const {
 	return this->as<String>()[pos];
 }
 
+// iteration implementation
+bool var::iterator::operator!=(iterator const& other)const noexcept {
+	return !this->operator==(other);
+}
+bool var::iterator::operator==(iterator const& other)const noexcept {
+	if (other.var_ref_ == nullptr) goto check_end;
+	if (other.iter_.index() == 2) {
+		if (std::get<2>(other.iter_) == false) goto check_end;
+		else goto regular_check;
+	}
+	else goto regular_check;
+
+check_end: {
+	switch (this->var_ref_->type_)
+	{
+	case tcx::json::OBJECT: 
+	case tcx::json::ARRAY:  
+		return this->iter_ == other.iter_;
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+		return std::get<bool>(this->iter_) == false;
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+		return true;
+	default:
+		return false;
+	}
+	}
+regular_check: {
+	return this->iter_ == other.iter_ && this->var_ref_ == other.var_ref_;
+}
+}
+var::iterator& var::iterator::operator++() {
+	switch (this->var_ref_->type_)
+	{
+	case tcx::json::OBJECT: ++std::get<Object::iterator>(this->iter_); break;
+	case tcx::json::ARRAY:  ++std::get<Array::iterator>(this->iter_); break;
+	case tcx::json::BOOLEAN: 
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+		this->iter_ = false;
+		break;
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: 
+		break;
+	}
+	return *this;
+}
+const var::iterator var::iterator::operator++(int) {
+	var::iterator ret = (*this);
+	++(*this);
+	return ret;
+}
+var& var::iterator::operator*() {
+	switch (this->var_ref_->type_)
+	{
+	case tcx::json::OBJECT:return _DE_CONST(std::get<Object::iterator>(this->iter_)->first);
+	case tcx::json::ARRAY: return *std::get<Array::iterator>(this->iter_);
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: return *this->var_ref_;
+	}
+}
+bool var::const_iterator::operator!=(const_iterator const& other)const noexcept {
+	return !this->operator==(other);
+}
+bool var::const_iterator::operator==(const_iterator const& other)const noexcept {
+	if (other.var_ref_ == nullptr) goto check_end;
+	if (other.iter_.index() == 2) {
+		if (std::get<2>(other.iter_) == false) goto check_end;
+		else goto regular_check;
+	}
+	else goto regular_check;
+
+check_end: {
+	switch (this->var_ref_->type_)
+	{
+	case tcx::json::OBJECT:
+	case tcx::json::ARRAY:
+		return this->iter_ == other.iter_;
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+		return std::get<bool>(this->iter_) == false;
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+		return true;
+	default:
+		return false;
+	}
+	}
+regular_check: {
+	return this->iter_ == other.iter_ && this->var_ref_ == other.var_ref_;
+}
+}
+var::const_iterator& var::const_iterator::operator++() {
+	switch (this->var_ref_->type_)
+	{
+	case tcx::json::OBJECT: ++std::get<Object::const_iterator>(this->iter_); break;
+	case tcx::json::ARRAY:  ++std::get<Array::const_iterator>(this->iter_); break;
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+		this->iter_ = false;
+		break;
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default:
+		break;
+	}
+	return *this;
+}
+const var::const_iterator var::const_iterator::operator++(int) {
+	var::const_iterator ret = *this;
+	++(*this);
+	return ret;
+}
+const var& var::const_iterator::operator*() {
+	switch (this->var_ref_->type_)
+	{
+	case tcx::json::OBJECT:return std::get<Object::const_iterator>(this->iter_)->first;
+	case tcx::json::ARRAY: return *std::get<Array::const_iterator>(this->iter_);
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: return *this->var_ref_;
+	}
+}
+var::iterator var::begin() noexcept {
+	var::iterator ret;
+	ret.var_ref_ = this;
+	switch (type_)
+	{
+	case tcx::json::OBJECT: {
+		ret.iter_ = as<Object>().begin();
+		break;
+	}
+	case tcx::json::ARRAY: {
+		ret.iter_ = as<Array>().begin();
+		break;
+	}
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:{
+		ret.iter_ = true;
+		break;
+	}
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: {
+		ret.iter_ = false;
+		break;
+	}
+	}
+	return ret;
+}
+var::iterator var::end() noexcept {
+	var::iterator ret;
+	ret.var_ref_ = this;
+	switch (type_)
+	{
+	case tcx::json::OBJECT: {
+		ret.iter_ = as<Object>().end();
+		break;
+	}
+	case tcx::json::ARRAY: {
+		ret.iter_ = as<Array>().end();
+		break;
+	}
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: {
+		ret.iter_ = false;
+		break;
+	}
+	}
+	return ret;
+}
+var::const_iterator var::begin() const noexcept {
+	return this->cbegin();
+}
+var::const_iterator var::end() const noexcept {
+	return this->cend();
+}
+var::const_iterator var::cbegin()const noexcept {
+	var::const_iterator ret;
+	ret.var_ref_ = this;
+	switch (type_)
+	{
+	case tcx::json::OBJECT: {
+		ret.iter_ = as<Object>().cbegin();
+		break;
+	}
+	case tcx::json::ARRAY: {
+		ret.iter_ = as<Array>().cbegin();
+		break;
+	}
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING: {
+		ret.iter_ = true;
+		break;
+	}
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: {
+		ret.iter_ = false;
+		break;
+	}
+	}
+	return ret;
+}
+var::const_iterator var::cend()const noexcept {
+	var::const_iterator ret;
+	ret.var_ref_ = this;
+	switch (type_)
+	{
+	case tcx::json::OBJECT: {
+		ret.iter_ = as<Object>().cend();
+		break;
+	}
+	case tcx::json::ARRAY: {
+		ret.iter_ = as<Array>().cend();
+		break;
+	}
+	case tcx::json::BOOLEAN:
+	case tcx::json::NUMBER:
+	case tcx::json::STRING:
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default: {
+		ret.iter_ = false;
+		break;
+	}
+	}
+	return ret;
+}
+
+
+// basic operators for var
 size_t var::length() {
 	switch (type_)
 	{
@@ -399,7 +988,7 @@ size_t var::length() {
 	case tcx::json::ARRAY:return as<Array>().size();
 	case tcx::json::STRING: return as<String>().size();
 	case tcx::json::BOOLEAN:
-	case tcx::json::NUMBER:
+	case tcx::json::NUMBER:return 1;
 	case tcx::json::UNDEFINED:
 	case tcx::json::J_NULL:
 	default: return ~0ULL;
@@ -648,12 +1237,12 @@ const var var::operator++(int) {
 }
 
 
-
+// global functions
 ItemType typeof(var const& item) {
 	return item.type_;
 }
 
-
+// JSON_GLOBAL_FUNCS implementations
 String JSON_GLOBAL_FUNCS::stringfy(ItemType type)const {
 	switch (type)
 	{
@@ -685,7 +1274,7 @@ String JSON_GLOBAL_FUNCS::stringfy(var const& value, bool format ,int indent, in
 			ret += "{\n";
 			const Object& obj = value.as<Object>();
 			for (const auto& i : obj) {
-				ret += ind + '\"' + i.first + "\":" + stringfy(i.second, format, indent, indent_time + 1) + ",\n";
+				ret += ind + '\"' + i.first.as<String>() + "\":" + stringfy(i.second, format, indent, indent_time + 1) + ",\n";
 			}
 			ret = ret.substr(0, ret.size() - 2);
 			ret += '\n' + end;
@@ -695,7 +1284,7 @@ String JSON_GLOBAL_FUNCS::stringfy(var const& value, bool format ,int indent, in
 			const Object& obj = value.as<Object>();
 			std::string ret = "{";
 			for (const auto& i : obj) {
-				ret += '\"' + i.first + "\":" + stringfy(i.second, format, indent, indent_time + 1) + ',';
+				ret += '\"' + i.first.as<String>() + "\":" + stringfy(i.second, format, indent, indent_time + 1) + ',';
 			}
 			ret = ret.substr(0, ret.size() - 1);
 			ret += '}';
@@ -736,276 +1325,6 @@ String JSON_GLOBAL_FUNCS::stringfy(var const& value, bool format ,int indent, in
 	default: return "0";
 	}
 }
-
-// namespace for parser
-namespace __JSON_Parser_Funcs{
-static const  char __space_char_set[4] = { ' ','\t','\r','\n' };
-// check if __c is space
-inline bool __Is_Space(char __c) noexcept {
-	for (int i = 0; i < 4; i++) {
-		if (__c == __space_char_set[i]) return true;
-	}
-	return false;
-}
-// find first the first index of char which is not equal to any item in __space_char_set
-inline size_t __Find_First_Not_Space(const String& str, size_t start = 0, size_t end = String::npos) {
-	size_t size = str.size();
-	if (!size)return String::npos;
-	end = std::min(end, size - 1);
-	for (size_t i = start; i <= end; i++) {
-		if (!__Is_Space(str[i])) {
-			return i;
-		}
-	}
-	return String::npos;
-}
-
-inline size_t __Find_Last_Not_Space(const String& str, size_t start = 0, size_t end = String::npos) {
-	size_t size = str.size();
-	if (!size)return String::npos;
-	end = std::min(size - 1, end);
-	for (size_t i = end; i >= start; i--) {
-		if (!__Is_Space(str[i])) {
-			return i;
-		}
-	}
-	return String::npos;
-}
-
-// contains start and stop
-inline String __StrBetween(const String& src, size_t start, size_t stop) {
-	if (start > stop) {
-		return "";
-	}
-	return src.substr(start, stop - start + 1);
-}
-// the first must matched
-// return the matched end position
-inline size_t __Match(const String& str, char tar_start, char tar_stop, size_t cur_pos, size_t end_pos) {
-	if (cur_pos >= end_pos - 1) { // not last
-		return String::npos;
-	}
-	if (str[cur_pos] != tar_start)return String::npos;
-
-	if (tar_start == '"') {
-		for (size_t i = cur_pos + 1; i < end_pos; i++) {
-			if (str[i] == tar_stop) {
-				if (i == cur_pos + 1)return cur_pos + 1;
-				if (str[i - 1] != '\\') {
-					return i;
-				}
-			}
-		}
-		return String::npos;
-	}
-	else if (tar_start == '[' || tar_start == '{') {
-		std::stack<size_t> record;
-		record.push(cur_pos);
-		for (size_t i = cur_pos + 1; i < end_pos; i++) {
-			if (str[i] == tar_start) {
-				record.push(i);
-			}
-			else if (str[i] == tar_stop) {
-				if (!record.size()) {
-					return String::npos;
-				}
-				record.pop();
-				if (!record.size()) {
-					return i;
-				}
-			}
-		}
-		return String::npos;
-	}
-	else return String::npos;
-
-
-}
-// the first must be a quate
-inline size_t __MatchQuate(const String& str, size_t cur_pos, size_t end_pos) {
-	return __Match(str, '"', '"', cur_pos, end_pos);
-}
-inline size_t __MatchCurlyBrace(const String& str, size_t cur_pos, size_t end_pos) {
-	return __Match(str, '{', '}', cur_pos, end_pos);
-}
-inline size_t __MatchSquareBrace(const String& str, size_t cur_pos, size_t end_pos) {
-	return __Match(str, '[', ']', cur_pos, end_pos);
-}
-inline bool __IsNumber(char __c) noexcept {
-	if (__c >= '0' && __c <= '9')return true;
-	else if (__c == '.')return true;
-	else return false;
-}
-inline double __ToDouble(const char __c) noexcept {
-	switch (__c)
-	{
-	case '0':return 0;
-	case '1':return 1;
-	case '2':return 2;
-	case '3':return 3;
-	case '4':return 4;
-	case '5':return 5;
-	case '6':return 6;
-	case '7':return 7;
-	case '8':return 8;
-	case '9':return 9;
-	default:return __c;
-	}
-}
-var __ParseObject(const String& str, size_t& total_size, size_t& cur_pos, size_t& end_pos) {
-	// obj start
-	var res = Object();
-read_one_member:    // lable of loop
-	{
-		// std::cout << res.Stringfy() << "\n";
-		cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
-		if (cur_pos == end_pos) {
-			return res;
-		}
-		// read key
-		if (str[cur_pos] != '"')return Null();
-		size_t out_quate = __MatchQuate(str, cur_pos, end_pos); // this is the position of '"'
-		if (out_quate == String::npos)return Null();
-		String cur_key = __StrBetween(str, cur_pos + 1, out_quate - 1);
-		if (cur_pos >= end_pos)return Null();
-		cur_pos = __Find_First_Not_Space(str, out_quate + 1, end_pos);
-		if (str[cur_pos] != ':') return Null();
-		// read value
-		cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
-		if (cur_pos >= end_pos)return Null();
-		char val_first_key = str[cur_pos];
-		if (val_first_key == '"') {  // var is str
-			out_quate = __MatchQuate(str, cur_pos, end_pos);
-			if (out_quate < end_pos) {
-				res[cur_key] = __StrBetween(str, cur_pos + 1, out_quate - 1);
-			}
-			cur_pos = out_quate + 1;
-		}
-		else if (val_first_key == '[') { // var is array
-			out_quate = __MatchSquareBrace(str, cur_pos, end_pos);
-			if (out_quate < end_pos) {
-				res[cur_key] = JSON.parse(__StrBetween(str, cur_pos, out_quate));
-			}
-			cur_pos = out_quate + 1;
-		}
-		else if (val_first_key == '{') { // var is object
-			out_quate = __MatchCurlyBrace(str, cur_pos, end_pos);
-			if (out_quate < end_pos) {
-				res[cur_key] = JSON.parse(__StrBetween(str, cur_pos, out_quate));
-			}
-			cur_pos = out_quate + 1;
-		}
-		else if (val_first_key == 'f') { // var is false
-			if (((cur_pos + 4) < end_pos) && (__StrBetween(str, cur_pos, cur_pos + 4) == "false")) {
-				res[cur_key] = false;
-			}
-			cur_pos = cur_pos + 5;
-		}
-		else if (val_first_key == 't') { // val is true
-			if (((cur_pos + 3) <= (end_pos - 1)) && (__StrBetween(str, cur_pos, cur_pos + 3) == "true")) {
-				res[cur_key] = true;
-			}
-			cur_pos = cur_pos + 4;
-		}
-		else { // val can be a number
-			size_t num_start = cur_pos;
-			while (__IsNumber(str[cur_pos]) && cur_pos < end_pos) {
-				cur_pos++;
-			}
-			if (cur_pos == num_start + 1) {
-				res[cur_key] = __ToDouble(str[num_start]);
-			}
-			else {
-				try {
-					res[cur_key] = std::stod(__StrBetween(str, num_start, cur_pos - 1));
-				}
-				catch (const std::exception&) {
-					return Null();
-				}
-			}
-		}
-		if (cur_pos == end_pos)return res;
-		cur_pos = __Find_First_Not_Space(str, cur_pos, end_pos);
-		if (cur_pos == end_pos)return res;
-		if (str[cur_pos] == ',') {
-			goto read_one_member;
-		}
-		else return Null();
-	}
-
-}
-var __ParseArray(const String& str, size_t& total_size, size_t& cur_pos, size_t& end_pos) {
-	// arr start
-	var res = Array();
-read_one_value: // lable of loop
-	cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
-	if (cur_pos == end_pos) {
-		return res;
-	}
-
-	char val_first_key = str[cur_pos];
-	if (val_first_key == '"') {  // val is str
-		size_t out_quate = __MatchQuate(str, cur_pos, end_pos);
-		if (out_quate < end_pos) {
-			res.push(__StrBetween(str, cur_pos + 1, out_quate - 1));
-		}
-		cur_pos = out_quate + 1;
-	}
-	else if (val_first_key == '[') { // val is array
-		size_t out_quate = __MatchSquareBrace(str, cur_pos, end_pos);
-		if (out_quate < end_pos) {
-			res.push(JSON.parse(__StrBetween(str, cur_pos, out_quate)));
-		}
-		cur_pos = out_quate + 1;
-	}
-	else if (val_first_key == '{') { // val is object
-		size_t out_quate = __MatchCurlyBrace(str, cur_pos, end_pos);
-		if (out_quate < end_pos) {
-			res.push(JSON.parse(__StrBetween(str, cur_pos, out_quate)));
-		}
-		cur_pos = out_quate + 1;
-	}
-	else if (val_first_key == 'f') { // val is false
-		if (((cur_pos + 4) < end_pos) && (__StrBetween(str, cur_pos, cur_pos + 4) == "false")) {
-			res.push(false);
-		}
-		cur_pos = cur_pos + 5;
-	}
-	else if (val_first_key == 't') { // val is true
-		if (((cur_pos + 3) <= (end_pos - 1)) && (__StrBetween(str, cur_pos, cur_pos + 3) == "true")) {
-			res.push(true);
-		}
-		cur_pos = cur_pos + 4;
-	}
-	else { // val can be a number
-		size_t num_start = cur_pos;
-		while (__IsNumber(str[cur_pos]) && cur_pos < end_pos) {
-			cur_pos++;
-		}
-		if (cur_pos == num_start + 1) {
-			res.push(__ToDouble(str[num_start]));
-		}
-		else {
-			std::string __current_value = __StrBetween(str, num_start, cur_pos - 1);
-			try {
-				res.push(std::stod(__current_value));
-			}
-			catch (const std::exception&) {
-				res.push(Null());
-			}
-		}
-	}
-	if (cur_pos == end_pos)return res;
-	cur_pos = __Find_First_Not_Space(str, cur_pos, end_pos);
-	if (cur_pos == end_pos)return res;
-	if (str[cur_pos] == ',') {
-		goto read_one_value;
-	}
-	else return Null();
-}
-
-}
-
 var JSON_GLOBAL_FUNCS::parse(String const& str)const {
 	// set local-global value
 	size_t total_size = str.size();
@@ -1023,6 +1342,21 @@ var JSON_GLOBAL_FUNCS::parse(String const& str)const {
 	return Null();
 }
 
+// var hash implementations
+inline size_t __Var_Hash::operator()(var const& item) const noexcept {
+	switch (typeof(item))
+	{
+	case tcx::json::NUMBER:return std::hash<Number>{}(item.as<Number>());
+	case tcx::json::STRING: return std::hash<String>{}(item.as<String>());
+	case tcx::json::BOOLEAN:return std::hash<Boolean>{}(item.as<Boolean>());
+	case tcx::json::OBJECT:
+	case tcx::json::ARRAY:
+	case tcx::json::UNDEFINED:
+	case tcx::json::J_NULL:
+	default:
+		return ~0ULL;
+	}
+}
 
 
 }}
@@ -1034,3 +1368,12 @@ var JSON_GLOBAL_FUNCS::parse(String const& str)const {
 #undef _ROUTE_TYPE
 #undef _DEREF_AS
 #undef _DEREF_AS_CONST
+#endif
+
+
+
+
+
+
+
+
