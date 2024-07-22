@@ -5,25 +5,32 @@
 using namespace tcx::json;
 
 int main() {
-	var a = new Object();
-	a["1"] = "hello";
-	a["2"] = 1;
-	a["3"] = true;
-	a["4"] = false;
-	a["5"] = Array();
-	a["5"].push(1, 2, 5, 5, true, false, "hello");
-	a["7"] = a["2"] + 2;
+	var a = JSON.create(
+		{
+			"c1":"1",
+			"c2" : [1,2.1,3,4,"hello",{
+				"cc1": [true,false] ,
+				"cc2" : ["yes","hello"] ,
+				"cc3" : false
+			}] ,
+			"c3" : 0,
+			"c4" : {
+				"cc1":"hello",
+				"cc2" : 1
+			}
+		}
+	);
 
-	for (let i = 0; i < 10; ++i) {
-		printf("%0.llf ", i.as<Number>());
+	if (a == null) {
+		printf("JSON error\n");
+		return -1;
+	}
+	var b = JSON.parse(JSON.stringfy(a,false));
+	
+	if (a == b) {
+		printf("yes");
+		printf("\n%s\n", JSON.stringfy(b,true,8).c_str());
 	}
 
-	if (a["3"] && a["4"]) {
-		printf("yes1\n");
-	}else if(a["5"][4] == true) {
-		printf("yes2\n");
-	}
-
-	std::cout << JSON.stringfy(a) << '\n';
 	return 0;
 }

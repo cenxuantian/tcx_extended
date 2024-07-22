@@ -87,6 +87,21 @@ t_websocket_tools.hpp
     obj["child_2"] = 10.5; // to emplace an item into the obj
     ```
 
+- Serialization and Deserialization  
+    The `JSON` global variable provides you the way of serialization and deserialization. You can use
+    `JSON.parse` and `JSON.create` for serialization.  
+    `JSON.parse` for `std::string`, `String` and `const char*`, while `JSON.create`  
+    let you write inline JSON script in C++ code.
+    ```C++
+    var json_obj_1 = JSON.parse("{\"child\":1}");
+    var json_obj_2 = JSON.create({"child":1});
+    ```
+    You can use `JSON.stringfy` to convert a JSON object to String.
+    ```C++
+    std::string json_str = JSON.stringfy(json_obj_1);_
+    ```
+
+
 ### t_math.hpp
 > *for math functions and draw points*
 ### t_process.hpp

@@ -35,6 +35,7 @@ SOFTWARE.
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <stack>
 
 
 
@@ -188,12 +189,17 @@ public:
 
 class JSON_GLOBAL_FUNCS {
 public:
-	String stringfy(var const& value, int indent = 2, int indent_time = 0)const;
-	String stringfy(ItemType type)const;
-	var parse(String const&)const;
+	String		stringfy(var const& value, bool format = true,int indent = 4, int indent_time = 0)const;
+	String		stringfy(ItemType type)const;
+	String		stringfy(Number d)const;
+	var			parse(String const&)const;
+	#define		create(...) parse(#__VA_ARGS__)
 };
 // An global instance of class JSON_GLOBAL_FUNCS
 static const JSON_GLOBAL_FUNCS JSON;
+
+
+
 
 /*------------------------------------------------------------------------------------------------
 
@@ -227,6 +233,18 @@ Interface Ends here!
 
 
 // implementations
+namespace {
+inline bool __Number_eqaul(Number _1, Number _2, Number precision = 1.0E-10) {
+	Number diff = _1 - _2;
+	if (diff < 0) diff = -diff;
+	return diff < precision;
+}
+inline bool __Is_int(Number _1) {
+	return __Number_eqaul(std::round(_1), _1);
+}
+}
+
+
 void var::__default_construct() {
 	this->type_ = UNDEFINED;
 	this->data_ = nullptr;
@@ -517,7 +535,7 @@ Boolean var::operator==(const var& input) const noexcept {
 	if (typeof(*this) != typeof(input))return false;
 	switch (type_)
 	{
-	case tcx::json::NUMBER:return as<Number>() == input.as<Number>();
+	case tcx::json::NUMBER:return __Number_eqaul(as<Number>(), input.as<Number>());
 	case tcx::json::STRING:return as<String>() == input.as<String>();
 	case tcx::json::OBJECT:return as<Object>() == input.as<Object>();
 	case tcx::json::ARRAY:return as<Array>() == input.as<Array>();
@@ -629,9 +647,13 @@ const var var::operator++(int) {
 	return ret;
 }
 
+
+
 ItemType typeof(var const& item) {
 	return item.type_;
 }
+
+
 String JSON_GLOBAL_FUNCS::stringfy(ItemType type)const {
 	switch (type)
 	{
@@ -645,49 +667,361 @@ String JSON_GLOBAL_FUNCS::stringfy(ItemType type)const {
 	default: return "Undefined";
 	}
 }
-String JSON_GLOBAL_FUNCS::stringfy(var const& value,int indent, int indent_time)const {
+String JSON_GLOBAL_FUNCS::stringfy(Number d)const {
+	auto ret = __Is_int(d) ? std::to_string((long long)d) : std::to_string(d);
+	auto pos = ret.find_last_not_of('0');
+	if (pos == String::npos) return ret;
+	else return ret.substr(0, pos + 1);
+}
+String JSON_GLOBAL_FUNCS::stringfy(var const& value, bool format ,int indent, int indent_time)const {
 	switch (value.type_)
 	{
 	case tcx::json::OBJECT: {
-		std::string ret(indent * indent_time, ' ');
-		std::string end = ret + '}';
-		std::string ind(indent * (indent_time + 1), ' ');
-		ret += "{\n";
-		const Object& obj = value.as<Object>();
-		for (const auto& i : obj) {
-			ret += ind+ '\"' + i.first +"\":"+ stringfy(i.second, indent, indent_time + 1) + ",\n";
+		if (format) {
+			std::string ret;
+			std::string end(indent * indent_time, ' ');
+			end += '}';
+			std::string ind(indent * (indent_time + 1), ' ');
+			ret += "{\n";
+			const Object& obj = value.as<Object>();
+			for (const auto& i : obj) {
+				ret += ind + '\"' + i.first + "\":" + stringfy(i.second, format, indent, indent_time + 1) + ",\n";
+			}
+			ret = ret.substr(0, ret.size() - 2);
+			ret += '\n' + end;
+			return ret;
 		}
-		ret = ret.substr(0,ret.size() - 2);
-		ret += '\n'+ end;
-		return ret;
+		else {
+			const Object& obj = value.as<Object>();
+			std::string ret = "{";
+			for (const auto& i : obj) {
+				ret += '\"' + i.first + "\":" + stringfy(i.second, format, indent, indent_time + 1) + ',';
+			}
+			ret = ret.substr(0, ret.size() - 1);
+			ret += '}';
+			return ret;
+		}
 	}
 	case tcx::json::ARRAY: {
-		std::string ret(indent * indent_time, ' ');
-		std::string end = ret + ']';
-		std::string ind(indent * (indent_time + 1), ' ');
-		ret += "[\n";
-		const Array& arr = value.as<Array>();
-		for (const var& i : arr) {
-			ret += ind+ stringfy(i, indent, indent_time + 1) +",\n";
+		if (format) {
+			std::string ret;
+			std::string end(indent * indent_time, ' ');
+			end += ']';
+			std::string ind(indent * (indent_time + 1), ' ');
+			ret += "[\n";
+			const Array& arr = value.as<Array>();
+			for (const var& i : arr) {
+				ret += ind + stringfy(i, format, indent, indent_time + 1) + ",\n";
+			}
+			ret = ret.substr(0, ret.size() - 2);
+			ret += '\n' + end;
+			return ret;
 		}
-		ret = ret.substr(0, ret.size() - 2);
-		ret += '\n' + end;
-		return ret;
+		else {
+			std::string ret = "[";
+			const Array& arr = value.as<Array>();
+			for (const var& i : arr) {
+				ret += stringfy(i, format, indent, indent_time + 1) + ',';
+			}
+			ret = ret.substr(0, ret.size() - 1);
+			ret += ']';
+			return ret;
+		}
 	}
 	case tcx::json::BOOLEAN:return value.as<Boolean>() ? "true" : "false";
-	case tcx::json::NUMBER:return std::to_string(value.as<Number>());
+	case tcx::json::NUMBER:return stringfy(value.as<Number>());
 	case tcx::json::STRING:return  '\"' + value.as<String>() + '\"';
 	case tcx::json::UNDEFINED:
 	case tcx::json::J_NULL:
 	default: return "0";
 	}
 }
-var JSON_GLOBAL_FUNCS::parse(String const&)const {
 
-	return Null{};
+// namespace for parser
+namespace __JSON_Parser_Funcs{
+static const  char __space_char_set[4] = { ' ','\t','\r','\n' };
+// check if __c is space
+inline bool __Is_Space(char __c) noexcept {
+	for (int i = 0; i < 4; i++) {
+		if (__c == __space_char_set[i]) return true;
+	}
+	return false;
+}
+// find first the first index of char which is not equal to any item in __space_char_set
+inline size_t __Find_First_Not_Space(const String& str, size_t start = 0, size_t end = String::npos) {
+	size_t size = str.size();
+	if (!size)return String::npos;
+	end = std::min(end, size - 1);
+	for (size_t i = start; i <= end; i++) {
+		if (!__Is_Space(str[i])) {
+			return i;
+		}
+	}
+	return String::npos;
 }
 
+inline size_t __Find_Last_Not_Space(const String& str, size_t start = 0, size_t end = String::npos) {
+	size_t size = str.size();
+	if (!size)return String::npos;
+	end = std::min(size - 1, end);
+	for (size_t i = end; i >= start; i--) {
+		if (!__Is_Space(str[i])) {
+			return i;
+		}
+	}
+	return String::npos;
+}
 
+// contains start and stop
+inline String __StrBetween(const String& src, size_t start, size_t stop) {
+	if (start > stop) {
+		return "";
+	}
+	return src.substr(start, stop - start + 1);
+}
+// the first must matched
+// return the matched end position
+inline size_t __Match(const String& str, char tar_start, char tar_stop, size_t cur_pos, size_t end_pos) {
+	if (cur_pos >= end_pos - 1) { // not last
+		return String::npos;
+	}
+	if (str[cur_pos] != tar_start)return String::npos;
+
+	if (tar_start == '"') {
+		for (size_t i = cur_pos + 1; i < end_pos; i++) {
+			if (str[i] == tar_stop) {
+				if (i == cur_pos + 1)return cur_pos + 1;
+				if (str[i - 1] != '\\') {
+					return i;
+				}
+			}
+		}
+		return String::npos;
+	}
+	else if (tar_start == '[' || tar_start == '{') {
+		std::stack<size_t> record;
+		record.push(cur_pos);
+		for (size_t i = cur_pos + 1; i < end_pos; i++) {
+			if (str[i] == tar_start) {
+				record.push(i);
+			}
+			else if (str[i] == tar_stop) {
+				if (!record.size()) {
+					return String::npos;
+				}
+				record.pop();
+				if (!record.size()) {
+					return i;
+				}
+			}
+		}
+		return String::npos;
+	}
+	else return String::npos;
+
+
+}
+// the first must be a quate
+inline size_t __MatchQuate(const String& str, size_t cur_pos, size_t end_pos) {
+	return __Match(str, '"', '"', cur_pos, end_pos);
+}
+inline size_t __MatchCurlyBrace(const String& str, size_t cur_pos, size_t end_pos) {
+	return __Match(str, '{', '}', cur_pos, end_pos);
+}
+inline size_t __MatchSquareBrace(const String& str, size_t cur_pos, size_t end_pos) {
+	return __Match(str, '[', ']', cur_pos, end_pos);
+}
+inline bool __IsNumber(char __c) noexcept {
+	if (__c >= '0' && __c <= '9')return true;
+	else if (__c == '.')return true;
+	else return false;
+}
+inline double __ToDouble(const char __c) noexcept {
+	switch (__c)
+	{
+	case '0':return 0;
+	case '1':return 1;
+	case '2':return 2;
+	case '3':return 3;
+	case '4':return 4;
+	case '5':return 5;
+	case '6':return 6;
+	case '7':return 7;
+	case '8':return 8;
+	case '9':return 9;
+	default:return __c;
+	}
+}
+var __ParseObject(const String& str, size_t& total_size, size_t& cur_pos, size_t& end_pos) {
+	// obj start
+	var res = Object();
+read_one_member:    // lable of loop
+	{
+		// std::cout << res.Stringfy() << "\n";
+		cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
+		if (cur_pos == end_pos) {
+			return res;
+		}
+		// read key
+		if (str[cur_pos] != '"')return Null();
+		size_t out_quate = __MatchQuate(str, cur_pos, end_pos); // this is the position of '"'
+		if (out_quate == String::npos)return Null();
+		String cur_key = __StrBetween(str, cur_pos + 1, out_quate - 1);
+		if (cur_pos >= end_pos)return Null();
+		cur_pos = __Find_First_Not_Space(str, out_quate + 1, end_pos);
+		if (str[cur_pos] != ':') return Null();
+		// read value
+		cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
+		if (cur_pos >= end_pos)return Null();
+		char val_first_key = str[cur_pos];
+		if (val_first_key == '"') {  // var is str
+			out_quate = __MatchQuate(str, cur_pos, end_pos);
+			if (out_quate < end_pos) {
+				res[cur_key] = __StrBetween(str, cur_pos + 1, out_quate - 1);
+			}
+			cur_pos = out_quate + 1;
+		}
+		else if (val_first_key == '[') { // var is array
+			out_quate = __MatchSquareBrace(str, cur_pos, end_pos);
+			if (out_quate < end_pos) {
+				res[cur_key] = JSON.parse(__StrBetween(str, cur_pos, out_quate));
+			}
+			cur_pos = out_quate + 1;
+		}
+		else if (val_first_key == '{') { // var is object
+			out_quate = __MatchCurlyBrace(str, cur_pos, end_pos);
+			if (out_quate < end_pos) {
+				res[cur_key] = JSON.parse(__StrBetween(str, cur_pos, out_quate));
+			}
+			cur_pos = out_quate + 1;
+		}
+		else if (val_first_key == 'f') { // var is false
+			if (((cur_pos + 4) < end_pos) && (__StrBetween(str, cur_pos, cur_pos + 4) == "false")) {
+				res[cur_key] = false;
+			}
+			cur_pos = cur_pos + 5;
+		}
+		else if (val_first_key == 't') { // val is true
+			if (((cur_pos + 3) <= (end_pos - 1)) && (__StrBetween(str, cur_pos, cur_pos + 3) == "true")) {
+				res[cur_key] = true;
+			}
+			cur_pos = cur_pos + 4;
+		}
+		else { // val can be a number
+			size_t num_start = cur_pos;
+			while (__IsNumber(str[cur_pos]) && cur_pos < end_pos) {
+				cur_pos++;
+			}
+			if (cur_pos == num_start + 1) {
+				res[cur_key] = __ToDouble(str[num_start]);
+			}
+			else {
+				try {
+					res[cur_key] = std::stod(__StrBetween(str, num_start, cur_pos - 1));
+				}
+				catch (const std::exception&) {
+					return Null();
+				}
+			}
+		}
+		if (cur_pos == end_pos)return res;
+		cur_pos = __Find_First_Not_Space(str, cur_pos, end_pos);
+		if (cur_pos == end_pos)return res;
+		if (str[cur_pos] == ',') {
+			goto read_one_member;
+		}
+		else return Null();
+	}
+
+}
+var __ParseArray(const String& str, size_t& total_size, size_t& cur_pos, size_t& end_pos) {
+	// arr start
+	var res = Array();
+read_one_value: // lable of loop
+	cur_pos = __Find_First_Not_Space(str, cur_pos + 1, end_pos);
+	if (cur_pos == end_pos) {
+		return res;
+	}
+
+	char val_first_key = str[cur_pos];
+	if (val_first_key == '"') {  // val is str
+		size_t out_quate = __MatchQuate(str, cur_pos, end_pos);
+		if (out_quate < end_pos) {
+			res.push(__StrBetween(str, cur_pos + 1, out_quate - 1));
+		}
+		cur_pos = out_quate + 1;
+	}
+	else if (val_first_key == '[') { // val is array
+		size_t out_quate = __MatchSquareBrace(str, cur_pos, end_pos);
+		if (out_quate < end_pos) {
+			res.push(JSON.parse(__StrBetween(str, cur_pos, out_quate)));
+		}
+		cur_pos = out_quate + 1;
+	}
+	else if (val_first_key == '{') { // val is object
+		size_t out_quate = __MatchCurlyBrace(str, cur_pos, end_pos);
+		if (out_quate < end_pos) {
+			res.push(JSON.parse(__StrBetween(str, cur_pos, out_quate)));
+		}
+		cur_pos = out_quate + 1;
+	}
+	else if (val_first_key == 'f') { // val is false
+		if (((cur_pos + 4) < end_pos) && (__StrBetween(str, cur_pos, cur_pos + 4) == "false")) {
+			res.push(false);
+		}
+		cur_pos = cur_pos + 5;
+	}
+	else if (val_first_key == 't') { // val is true
+		if (((cur_pos + 3) <= (end_pos - 1)) && (__StrBetween(str, cur_pos, cur_pos + 3) == "true")) {
+			res.push(true);
+		}
+		cur_pos = cur_pos + 4;
+	}
+	else { // val can be a number
+		size_t num_start = cur_pos;
+		while (__IsNumber(str[cur_pos]) && cur_pos < end_pos) {
+			cur_pos++;
+		}
+		if (cur_pos == num_start + 1) {
+			res.push(__ToDouble(str[num_start]));
+		}
+		else {
+			std::string __current_value = __StrBetween(str, num_start, cur_pos - 1);
+			try {
+				res.push(std::stod(__current_value));
+			}
+			catch (const std::exception&) {
+				res.push(Null());
+			}
+		}
+	}
+	if (cur_pos == end_pos)return res;
+	cur_pos = __Find_First_Not_Space(str, cur_pos, end_pos);
+	if (cur_pos == end_pos)return res;
+	if (str[cur_pos] == ',') {
+		goto read_one_value;
+	}
+	else return Null();
+}
+
+}
+
+var JSON_GLOBAL_FUNCS::parse(String const& str)const {
+	// set local-global value
+	size_t total_size = str.size();
+	if (total_size < 2) return Null();   // check least length
+	size_t cur_pos = __JSON_Parser_Funcs::__Find_First_Not_Space(str);   // find first valid pos
+	size_t end_pos = __JSON_Parser_Funcs::__Find_Last_Not_Space(str);    // find last valid pos
+	if (cur_pos == String::npos || end_pos == String::npos || cur_pos >= end_pos) return Null();
+	
+	if (str[cur_pos] == '{' && str[end_pos] == '}')
+		return __JSON_Parser_Funcs::__ParseObject(str, total_size, cur_pos, end_pos);   // this is an object
+	else if (str[cur_pos] == '[' && str[end_pos] == ']')   // this is an array
+		return __JSON_Parser_Funcs::__ParseArray(str, total_size, cur_pos, end_pos);
+	else return Null();
+
+	return Null();
+}
 
 
 
