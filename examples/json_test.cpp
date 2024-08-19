@@ -119,6 +119,7 @@ int main() {
 	for (const var& i : a) {
 		printf("key:%s, val:%s\n",i.as<String>().c_str(), a[i].as<String>().c_str());
 	}
+	printf("%d\n", _MSVC_LANG);
 
 	return 0;
 }

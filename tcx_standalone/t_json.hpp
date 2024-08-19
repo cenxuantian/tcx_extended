@@ -41,6 +41,19 @@ SOFTWARE.
 #include <stack>
 #include <variant>
 
+#ifdef _MSC_VER
+#if _MSVC_LANG >= 202002L //C++20
+#include <source_location>
+#else
+//#include <experimental/source_location>
+#endif
+#else
+#if __cplusplus >=202002L //C++20
+#include <source_location>
+#else
+
+#endif
+#endif
 
 namespace tcx {
 namespace json {
@@ -241,9 +254,6 @@ public:
 };
 // An global instance of class JSON_GLOBAL_FUNCS
 static const JSON_GLOBAL_FUNCS JSON;
-
-
-
 
 /*------------------------------------------------------------------------------------------------
 

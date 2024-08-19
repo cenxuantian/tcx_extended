@@ -16,7 +16,9 @@ set(BUILD_PIC_TEST FALSE)
 set(BUILD_MATRIX_TEST FALSE)
 set(BUILD_CONTINOOUS_HEAP_TEST FALSE)
 set(BUILD_CONTINOOUS_RBTREE_TEST FALSE)
-set(BUILD_JSON_TEST TRUE)
+set(BUILD_JSON_TEST FALSE)
+set(BUILD_META_TEST TRUE)
+
 
 
 if(MINGW)
@@ -29,7 +31,7 @@ INCLUDE_DIRECTORIES( ${CUDA_INCLUDE_DIRS})
 link_directories(${CUDA_INCLUDE_DIRS}/../lib/x64)
 
 endif()
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
 
 include_directories(${PROJECT_SOURCE_DIR}/tcx_standalone)
@@ -139,4 +141,8 @@ endif()
 
 if(BUILD_JSON_TEST)
 add_executable(json_test examples/json_test.cpp)
+endif()
+
+if(BUILD_META_TEST)
+add_executable(meta_test examples/meta_test.cpp)
 endif()

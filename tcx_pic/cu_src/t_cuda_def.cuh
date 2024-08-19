@@ -24,7 +24,7 @@
 #define __CU_MAX_BLOCK_COUNT 65535
 #define __CU_MAX_THREAD_COUNT 1024
 
-#define t_cuIdx threadIdx.x+blockIdx.x*blockDim.x
+#define t_cuIdx threadIdx.x+(blockIdx.x*blockDim.x)
 #define t_cuMaxThreadCount blockDim.x*gridDim.x
 
 void t_cu_get_launch_arg(int max_size, int* block, int* thread) {
